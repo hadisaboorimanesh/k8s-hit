@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-vault-plugin
+  namespace: argocd
+spec:
+  destination:
+    namespace: test
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    path: .
+    repoURL: https://github.com/hadisaboorimanesh/mysql.git
+    targetRevision: HEAD
+    plugin:
+      name: argocd-vault-plugin
+        #    env:
+        #  - name: VAULT_ADDR
+        #   value: http://vault.vault:8200
+        # - name: VAULT_TOKEN
+        #  value: s.0t5yCxZKvm0fgUmNL6YR74c5
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true      

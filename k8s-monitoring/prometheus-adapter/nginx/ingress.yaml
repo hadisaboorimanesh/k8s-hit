@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  name: nginx
+  namespace: monitoring
+  resourceVersion: "65531758"
+  uid: 50ba420a-7131-47e0-a48c-8e5c9fcb1404
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: nginx.hasti.co
+    http:
+      paths:
+      - backend:
+          service:
+            name: nginx-service
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - nginx.hasti.co
+    secretName: hasti-tls

@@ -1,0 +1,32 @@
+apiVersion: v1
+data:
+  dex.config: |
+    connectors:
+    - type: ldap
+      name: myad.local
+      id: ad
+      config:
+        # Ldap server address
+        host: gig.holdings:636
+        insecureNoSSL: false
+        insecureSkipVerify: true
+        # Variable name stores ldap bindDN in argocd-secret
+        bindDN: "$dex.ldap.bindDN"
+        # Variable name stores ldap bind password in argocd-secret
+        bindPW: "$dex.ldap.bindPW"
+        usernamePrompt: Username
+        # Ldap user serch attributes
+        userSearch:
+          baseDN: "OU=HIT-Users,OU=HIT,OU=GIG-Holdings,DC=gig,DC=holdings"
+          filter: ""
+          username: sAMAccountName
+          idAttr: distinguishedName
+          emailAttr: mail
+          nameAttr: displayName
+        # Ldap group serch attributes
+        groupSearch:
+          baseDN: "OU=HIT-Users,OU=HIT,OU=GIG-Holdings,DC=gig,DC=holdings"
+          filter: ""
+          userAttr: distinguishedName
+          groupAttr: member
+          nameAttr: name

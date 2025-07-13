@@ -1,0 +1,82 @@
+COMPUTED VALUES: null
+affinity: {}
+enableHttpOpenTelemetryCollector: false
+enableHttpZipkinCollector: false
+enabled: true
+environmentVariables:
+  BADGER_DIRECTORY_KEY: /badger/key
+  BADGER_DIRECTORY_VALUE: /badger/data
+  BADGER_EPHEMERAL: false
+  MEMORY_MAX_TRACES: 100000
+  METRICS_STORAGE_TYPE: prometheus
+  PROMETHEUS_SERVER_URL: http://thanos-querier.monitoring:9090
+  SPAN_STORAGE_TYPE: memory
+  QUERY_MAX_CLOCK_SKEW_ADJUSTMENT: 10s
+  SPAN_METRICS_PROMETHEUS_QUERY_SUPPORT: "true"
+  QUERY_TIMEOUT : "60s"
+fullnameOverride: ""
+healthCheckUrl: /
+image:
+  pullPolicy: IfNotPresent
+  repository: docker-proxy.hasti.co/jaegertracing/all-in-one
+  versionOverride: '*'
+imagePullSecrets: []
+ingress:
+  annotations: {}
+  className: nginx
+  enabled: true
+  hosts:
+  - host: jaeger.tapsi.shop
+    paths:
+    - path: /
+      pathType: ImplementationSpecific
+  tls:
+  - hosts:
+    - jaeger.tapsi.shop
+    secretName: tapsishop-tls
+livenessProbe:
+  failureThreshold: 3
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 3
+nameOverride: ""
+nodeSelector: {}
+podAnnotations:
+  prometheus.io/path: /metrics
+  prometheus.io/port: "14269"
+  prometheus.io/scrape: "true"
+podSecurityContext: {}
+readinessProbe:
+  failureThreshold: 3
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 3
+replicaCount: 1
+resources:
+  limits:
+    cpu: 2
+    memory: 4Gi
+  requests:
+    cpu: 1
+    memory: 2Gi
+securityContext:
+  runAsGroup: 0
+  runAsUser: 0
+service:
+  annotations:
+    prometheus.io/probe: "true"
+    prometheus.io/probe-path: /
+  headless:
+    annotations: {}
+  port: 16686
+  type: ClusterIP
+serviceAccount:
+  create: true
+terminationGracePeriodSeconds: 10
+tests:
+  enabled: false
+tolerations: []
+volume:
+  className: longhorn
+  enabled: true
+  size: 100Gi

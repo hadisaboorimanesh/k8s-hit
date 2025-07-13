@@ -1,0 +1,21 @@
+apiVersion: v2
+appVersion: v0.7.0
+description: Install prometheus-json-exporter
+home: https://github.com/prometheus-community/json_exporter
+keywords:
+- metric
+- monitoring
+- prometheus
+maintainers:
+- email: schmiddim@gmx.at
+  name: schmiddim
+  url: https://github.com/schmiddim
+- email: zanhsieh@gmail.com
+  name: zanhsieh
+  url: https://github.com/zanhsieh
+- email: github@xiu.io
+  name: xiu
+  url: https://github.com/xiu
+name: prometheus-json-exporter
+type: application
+version: 0.16.0

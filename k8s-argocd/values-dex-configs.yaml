@@ -1,0 +1,42 @@
+configs:
+  cm:
+    url: https://argocd.hasti.co
+    dex.config: |
+      logger:
+        level: debug
+      connectors:
+        - type: ldap
+          id: my-ldap
+          name: LDAP
+          config:
+            host: "GIG-DC1-G004.gig.holdings:636"
+            insecureSkipVerify: true
+            bindDN: CN=Moradi\, Saeed (HIT),OU=HIT-Users,OU=HIT,OU=GIG-Holdings,DC=gig,DC=holdings
+            bindPW: S@eed1295959595
+            usernamePrompt: Username
+            userSearch:
+              baseDN: "OU=HIT-Users,OU=HIT,OU=GIG-Holdings,DC=gig,DC=holdings"
+              filter: "(objectClass=top)"
+              username: sAMAccountName
+              idAttr: sAMAccountName
+              emailAttr: mail
+              nameAttr: name
+                #preferredUsernameAttr: uid
+            groupSearch:
+              baseDN: "OU=HIT-Users,OU=HIT,OU=GIG-Holdings,DC=gig,DC=holdings"
+              filter: "(objectClass=top)"
+              userMatchers:
+              - userAttr: sAMAccountName
+                groupAttr: member
+                  #userAttr: DN
+                  #groupAttr: member
+              nameAttr: cn
+
+dex:
+  logLevel: "debug"
+  extraArgs: 
+    - --disable-tls
+server:
+  extraArgs:
+    - --dex-server=http://argo-cd-argocd-dex-server:5556
+    - --dex-server-plaintext                

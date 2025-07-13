@@ -1,0 +1,41 @@
+# Image.Tag 
+image:
+  repository: docker-proxy.hasti.co/bitnami/thanos
+  tag: 0.32.0
+# Limit cpu and memory querier
+querier:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 2000Mi
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+# Limit cpu and memory storegateway
+storegateway:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 2000m
+      memory: 8Gi
+    limits:
+      cpu: 4000m
+      memory: 16Gi
+# Limit cpu and memory comactor
+compactor:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 2000m
+      memory: 6000Mi
+    limits:
+      cpu: 4000m
+      memory: 10000Mi
+#for object storage config
+objstore:
+  bucket: stage
+  endpoint: "minio-k8s-api.hasti.co"
+  region: "us-east-1"
+  access_key: "0yxhcHci2Uv5D99Z"
+  secret_key: "tLhEzUWxA6Bpjh78EXMWozIdsNChHmvk"         

@@ -1,0 +1,47 @@
+groups:
+- name: RecordingRules
+  rules:
+  - record: container_cpu_usage_irate
+    expr: avg( irate(container_cpu_usage_seconds_total[5m]) ) by (container)
+  - record: container_memory_usage_irate
+    expr:  avg( irate(container_memory_working_set_bytes[5m]) ) by (container)
+
+  # - record: nginx_ingress_success_rate
+  #   expr: sum(rate(nginx_ingress_controller_requests{status!~"[5].*"}[5m])) by (ingress, controller_pod, controller_class, namespace)
+  # - record: nginx_ingress_total_rate
+  #   expr: sum(rate(nginx_ingress_controller_requests[5m])) by (ingress, controller_pod, controller_class, namespace)        
+
+
+  # - record: nginx_ingress_request_rate
+  #   expr: sum(rate(nginx_ingress_controller_requests[5m])) by (ingress, controller_pod, controller_class, controller_namespace)      
+  # - record: nginx_ingress_request_size_rate
+  #   expr: sum(rate(nginx_ingress_controller_request_size_sum[2m])) by (controller_pod, controller_class, controller_namespace)    
+  # - record: nginx_ingress_response_size_rate
+  #   expr: sum(rate(nginx_ingress_controller_response_size_sum[2m])) by (controller_pod, controller_class, controller_namespace)    
+
+
+
+  # - record: nginx_ingress_success_rate_5m
+  #   expr: sum(rate(nginx_ingress_controller_requests{status!~"[5].*"}[5m])) by (ingress, controller_pod, controller_class, namespace)
+  # - record: nginx_ingress_total_rate_5m
+  #   expr: sum(rate(nginx_ingress_controller_requests[5m])) by (ingress, controller_pod, controller_class, namespace)
+
+
+  # - record: nginx_ingress_success_rate_1h
+  #   expr: sum(rate(nginx_ingress_controller_requests{status!~"[5].*"}[1h])) by (ingress, controller_pod, controller_class, namespace)
+  # - record: nginx_ingress_total_rate_1h
+  #   expr: sum(rate(nginx_ingress_controller_requests[1h])) by (ingress, controller_pod, controller_class, namespace)
+
+
+  # - record: nginx_ingress_success_rate_6h
+  #   expr: sum(rate(nginx_ingress_controller_requests{status!~"[5].*"}[6h])) by (ingress, controller_pod, controller_class, namespace)
+  # - record: nginx_ingress_total_rate_6h
+  #   expr: sum(rate(nginx_ingress_controller_requests[6h])) by (ingress, controller_pod, controller_class, namespace)
+
+
+  # - record: nginx_ingress_success_percentage_5m
+  #   expr: (nginx_ingress_success_rate_5m / nginx_ingress_total_rate_5m)
+  # - record: nginx_ingress_success_percentage_1h
+  #   expr: (nginx_ingress_success_rate_1h / nginx_ingress_total_rate_1h)
+  # - record: nginx_ingress_success_percentage_6h
+  #   expr: (nginx_ingress_success_rate_6h / nginx_ingress_total_rate_6h)

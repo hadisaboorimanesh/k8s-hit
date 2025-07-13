@@ -1,0 +1,97 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: docker-proxy.hasti.co/nginx:latest
+          ports:
+            - containerPort: 80
+              #@ volumeMounts:
+              # - name: nginx-config-volume
+              #mountPath: /etc/nginx/conf.d
+              #subPath: nginx.conf
+      volumes:
+        - name: nginx-config-volume
+          configMap:
+            name: nginx-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: monitoring
+  name: nginx-service
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+  selector:
+    app: nginx
+  type: ClusterIP
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: monitoring
+data:
+  nginx.conf: |
+    server {
+        listen 80;
+
+        location / {
+            root /usr/share/nginx/html;
+            index index.html index.htm;
+        }
+
+        error_page 404 /404.html;
+        location = /404.html {
+            internal;
+        }
+
+        location /health {
+            access_log off;
+            return 200 'OK';
+            add_header Content-Type text/plain;
+        }
+    }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  name: nginx
+  namespace: monitoring
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: nginx.hasti.co
+    http:
+      paths:
+      - backend:
+          service:
+            name: nginx-service
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - nginx.hasti.co
+    secretName: hasti-tls

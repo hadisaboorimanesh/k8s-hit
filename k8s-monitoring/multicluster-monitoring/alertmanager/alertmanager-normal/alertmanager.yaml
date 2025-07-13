@@ -1,0 +1,282 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: alertmanager
+  name: alertmanager
+  namespace: monitoring
+spec:
+  ports:
+  - port: 9093
+    protocol: TCP
+    targetPort: 9093
+  selector:
+    app: alertmanager
+  type: ClusterIP
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+data:
+  config.yml: |-
+    route:
+      receiver: 'default'
+      group_by: ['alertname','cluster']
+      group_wait: 30s
+      group_interval: 6m
+      repeat_interval: 6h
+
+
+      routes:
+      - match:
+          cluster: "stage"
+          namespace: "monitoring"
+        receiver: 'monitoring'    
+
+      - match:
+          kubernetes_namespace: "stage"
+        receiver: 'stage'   
+      - match:
+          namespace: "stage"
+        receiver: 'stage'      
+      - match:
+          type: "os-metrics"
+        receiver: 'operationsystem'   
+      - match:
+          type: "argocd-metrics"
+          dest_namespace: "stage"
+        receiver: 'argocd'   
+      - match:
+          type: "blackbox_metrics"
+        receiver: 'blackbox'    
+      - match:
+          type: "minio"
+        receiver: 'minio' 
+      - match:
+          type: "monitoring-metrics"
+        receiver: 'monitoring'      
+
+
+    receivers:
+    - name: 'default'
+    - name: monitoring
+      slack_configs:
+        - api_url: https://chat.dartil.com/hooks/p6e6urk1kffyjkggfzc9pdrkwh
+          send_resolved: true
+          http_config:
+            follow_redirects: true
+            enable_http2: true
+          text: >-
+            {{ if eq .Status "firing" -}}
+            {{ range .Alerts -}} *Alert severity:* `{{ .Labels.severity }}`
+            *Description:* {{ .Annotations.description }} 
+            *Summary:* {{ .Annotations.summary }} 
+            {{ end }}
+            {{- else if eq .Status "resolved" -}}
+            {{ range .Alerts -}} *Alert severity:* `{{ .Labels.severity }}`
+            *Description:* {{ .Annotations.resolved }} 
+            {{ end }}
+            {{ end }}
+          title: >-
+            [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{
+            .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname
+            }}         
+
+    - name: stage
+      slack_configs:
+        - api_url: https://chat.dartil.com/hooks/kdid3bigdignmkjsgej4awtpky
+          send_resolved: true
+          text: >-
+            {{ if eq .Status "firing" -}}
+            {{ range .Alerts -}} *Alert severity:* `{{ .Labels.severity }}`
+            *Description:* {{ .Annotations.description }} 
+            *Summary:* {{ .Annotations.summary }} 
+            {{ end }}
+            {{- else if eq .Status "resolved" -}}
+            {{ range .Alerts -}} 
+            *Alert severity:* `{{ .Labels.severity }}`
+            *Description:* {{ .Annotations.resolved }}
+            {{- "\n" -}} 
+            {{ end }}
+            {{ end }}
+          title: >-
+            [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{
+            .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname
+            }}          
+
+    - name: operationsystem
+      slack_configs:
+        - api_url: https://chat.dartil.com/hooks/mheutu4i5jr1igo46cagwdxe7h
+          send_resolved: true
+          http_config:
+            follow_redirects: true
+            enable_http2: true
+          text: >-
+            {{ if eq .Status "firing" -}}
+            {{ range .Alerts -}} *Alert severity:* `{{ .Labels.severity }}`
+            *Description:* {{ .Annotations.description }} 
+            *Summary:* {{ .Annotations.summary }} 
+            {{ end }}
+            {{- else if eq .Status "resolved" -}}
+            {{ range .Alerts -}} *Alert severity:* `{{ .Labels.severity }}`
+            *Description:* {{ .Annotations.resolved }} 
+            {{ end }}
+            {{ end }}
+          title: >-
+            [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{
+            .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname
+            }}    
+
+    - name: argocd
+      slack_configs:
+        - api_url: https://chat.dartil.com/hooks/ge31wea5sjb3xkpuwj5omexebh
+          send_resolved: true
+          http_config:
+            follow_redirects: true
+            enable_http2: true
+          text: >-
+            {{ if eq .Status "firing" -}}
+            {{ range .Alerts -}} *Alert severity:* `{{ .Labels.severity }}`
+            *Description:* {{ .Annotations.description }} 
+            *Summary:* {{ .Annotations.summary }} 
+            {{ end }}
+            {{- else if eq .Status "resolved" -}}
+            {{ range .Alerts -}} *Alert severity:* `{{ .Labels.severity }}`
+            *Description:* {{ .Annotations.resolved }} 
+            {{ end }}
+            {{ end }}
+          title: >-
+            [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{
+            .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname
+            }}   
+            
+    - name: argocd2
+      slack_configs:
+        - api_url: https://chat.dartil.com/hooks/ge31wea5sjb3xkpuwj5omexebh
+          send_resolved: true
+          text: >-
+            {{ range .Alerts -}} *Alert:* {{ .Annotations.title }}{{ if
+            .Labels.severity }} - `{{ .Labels.severity }}`{{ end }}
+            *Description:* {{ .Annotations.description }} 
+            *Summary:* {{ .Annotations.summary }} *Details:*
+              {{ range .Labels.SortedPairs }} • *{{ .Name }}:* `{{ .Value }}`
+              {{ end }}
+            {{ end }}
+          title: >-
+            [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{
+            .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname
+            }}        
+
+
+    - name: blackbox
+      slack_configs:
+        - api_url: https://chat.dartil.com/hooks/fjbn5odqfpnkjy974fr3k5hjar
+          send_resolved: true
+          text: >-
+            {{ if eq .Status "firing" -}}
+            {{ range .Alerts -}} *Alert severity:* `{{ .Labels.severity }}`
+            *Description:* {{ .Annotations.description }} 
+            *Summary:* {{ .Annotations.summary }} 
+            {{ end }}
+            {{- else if eq .Status "resolved" -}}
+            {{ range .Alerts -}} *Alert severity:* `{{ .Labels.severity }}`
+            *Description:* {{ .Annotations.resolved }} 
+            {{ end }}
+            {{ end }}
+          title: >-
+            [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{
+            .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname
+            }}    
+
+    - name: minio
+      slack_configs:
+        - api_url: https://chat.dartil.com/hooks/8kmkp7s5cirz9b3qdfhioaudqe
+          send_resolved: true
+          http_config:
+            follow_redirects: true
+            enable_http2: true
+          text: >-
+            {{ if eq .Status "firing" -}}
+            {{ range .Alerts -}} *Alert severity:* `{{ .Labels.severity }}`
+            *Description:* {{ .Annotations.description }} 
+            *Summary:* {{ .Annotations.summary }} 
+            {{ end }}
+            {{- else if eq .Status "resolved" -}}
+            {{ range .Alerts -}} *Alert severity:* `{{ .Labels.severity }}`
+            *Description:* {{ .Annotations.resolved }} 
+            {{ end }}
+            {{ end }}
+          title: >-
+            [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{
+            .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname
+            }}    
+          color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'    
+
+    - name: minio1
+      slack_configs:
+        - api_url: https://chat.dartil.com/hooks/8kmkp7s5cirz9b3qdfhioaudqe
+          send_resolved: true
+          text: >-
+            {{ range .Alerts -}} *Alert:* {{ .Annotations.title }}{{ if
+            .Labels.severity }} - `{{ .Labels.severity }}`{{ end }}
+            *Description:* {{ .Annotations.description }}
+            *Summary:* {{ .Annotations.summary }} *Details:*
+              {{ range .Labels.SortedPairs }} • *{{ .Name }}:* `{{ .Value }}`
+              {{ end }}
+            {{ end }}
+          title: >-
+            [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{
+            .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname
+            }}
+
+    inhibit_rules:
+      - source_match:
+          severity: "critical"
+        target_match:
+          severity: "warning"
+        equal:
+          - alertname
+          - cluster
+          - namespace
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  labels:
+    app: alertmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      containers:
+        - name: alertmanager
+          image: quay.io/prometheus/alertmanager:v0.26.0  # Replace with the desired version
+          args:
+            - '--config.file=/etc/alertmanager/config.yml'
+            - '--storage.path=/alertmanager'
+          ports:
+            - name: web
+              containerPort: 9093
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/alertmanager
+            - name: alertmanager    
+              mountPath: /alertmanager
+      volumes:
+        - name: config-volume
+          configMap:
+            name: alertmanager-config  # Replace with the ConfigMap name containing your alertmanager.yml
+        - emptyDir: {}
+          name: alertmanager      

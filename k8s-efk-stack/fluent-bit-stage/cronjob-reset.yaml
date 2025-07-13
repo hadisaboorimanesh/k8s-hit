@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: fluentbit-rollout-restart
+  namespace: efk  
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 1
+  successfulJobsHistoryLimit: 2
+  suspend: false  
+  schedule: "0 4 * * *"  # Every day at midnight
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: fluentbit-restart-sa
+          containers:
+          - name: restart-fluentbit
+            image: docker.hasti.co/bitnami/kubectl:latest # You can use any image with kubectl available
+            command:
+            - /bin/sh
+            - -c
+            - |
+              kubectl rollout restart daemonset fluent-fluent-bit -n efk
+          restartPolicy: OnFailure
+      backoffLimit: 4
+

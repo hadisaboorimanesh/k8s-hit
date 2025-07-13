@@ -1,0 +1,106 @@
+COMPUTED VALUES:
+alertmanager:
+  enabled: true
+  image: docker.hasti.co/prom/alertmanager:v0.25.0
+  service:
+    type: ClusterIP
+certificate:
+  enabled: false
+grafana:
+  enabled: true
+  image: docker.hasti.co/grafana/grafana:9.5.2-ubuntu
+  service:
+    type: ClusterIP
+  storage: 1G
+ingress:
+  alertmanager:
+    host: alertmanager-stage.hasti.co
+  enabled: true
+  grafana:
+    host: grafana-stage.hasti.co
+  ruler:
+    host: thanos-ruler-stage.hasti.co
+  ssl: true
+  thanos:
+    host: thanos-stage.hasti.co
+kube_state_metrics:
+  enabled: true
+  image: docker.hasti.co/coreos/kube-state-metrics:latest
+namespace: monitoring
+nodeExporter:
+  enabled: true
+  image: docker.hasti.co/prometheus/node-exporter:v1.3.1
+  service:
+    type: ClusterIP    
+prometheus:
+  clusterName: stage
+  enabled: true
+  image: docker.hasti.co/bitnami/prometheus:2.48.0-debian-11-r0
+  replicas: 3
+  resources:
+    limits:
+      cpu: 2
+      memory: 10Gi
+    requests:
+      cpu: 0.5
+      memory: 2Gi
+  storage: 100Gi
+pushgateway:
+  enabled: true
+  image: docker.hasti.co/prom/pushgateway:v1.5.1
+  replicas: 1
+  service:
+    type: ClusterIP
+storageClass:
+  name: longhorn
+thanos:
+  compactor:
+    enabled: true
+    replicas: 1
+    resources:
+      limits:
+        cpu: 2
+        memory: 2Gi
+      requests:
+        cpu: 0.5
+        memory: 1Gi
+  image: docker.hasti.co/thanos/thanos:v0.31.0
+  query:
+    enabled: true
+    replicas: 2
+    resources:
+      limits:
+        cpu: 2
+        memory: 6Gi
+      requests:
+        cpu: 0.5
+        memory: 1Gi
+    scrape:
+      enabled: false
+      type: ClusterIP
+    service:
+      type: ClusterIP
+  ruler:
+    enabled: true
+    replicas: 1
+    resources:
+      limits:
+        cpu: 2
+        memory: 2Gi
+      requests:
+        cpu: 0.5
+        memory: 1Gi
+    rules_bucket: monitoring
+    service:
+      type: ClusterIP
+  s3_secret: thanos-s3-credentials
+  store:
+    enabled: true
+    replicas: 1
+    resources:
+      limits:
+        cpu: 2
+        memory: 3Gi
+      requests:
+        cpu: 0.5
+        memory: 1Gi

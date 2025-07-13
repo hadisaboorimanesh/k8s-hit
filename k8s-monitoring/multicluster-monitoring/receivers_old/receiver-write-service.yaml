@@ -1,0 +1,38 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: receiver-write
+  namespace: monitoring
+spec:
+  type: ClusterIP
+  ports:
+    - port: 10908
+      targetPort: remote-write
+      protocol: TCP
+      name: remote-write
+  selector:
+    app.kubernetes.io/name: receiver
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: remote-write-k8s.hasti.co
+  namespace: monitoring
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: remote-write-k8s.hasti.co
+    http:
+      paths:
+      - backend:
+          service:
+            name: receiver-write
+            port:
+              number: 10908
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - remote-write-k8s.hasti.co
+    secretName: hasti-tls

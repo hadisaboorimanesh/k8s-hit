@@ -1,0 +1,41 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: monitoring 
+  name: nginx-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-server    
+  template:
+    metadata:
+      annotations:
+        prometheus.io/path: "/status/format/prometheus"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "80"
+      labels:
+        app: nginx-server
+    spec:
+      containers:
+      - name: nginx-demo
+        image:  docker-proxy.hasti.co/arquivei/nginx-vts:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+          name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: monitoring
+  name: nginx-service
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+  selector:
+    app: nginx-server
+  type: ClusterIP

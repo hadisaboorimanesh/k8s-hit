@@ -1,0 +1,8 @@
+ci/
+changelog/
+.vscode
+*.tgz
+charts/
+.DS_Store
+.env
+*.log

@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ThanosRuler
+metadata:
+  name: thanos-ruler
+  labels:
+    example: thanos-ruler
+spec:
+  image: quay.io/thanos/thanos:v0.32.0
+  ruleSelector: {}
+  ruleNamespaceSelector: {}
+  queryEndpoints:
+    - dnssrv+_http._tcp.querier.monitoring.svc.cluster.local
+  alertmanagersConfig:
+    key: alertmanager-configs.yaml
+    name: thanosruler-alertmanager-config

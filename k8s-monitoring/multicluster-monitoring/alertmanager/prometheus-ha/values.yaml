@@ -1,0 +1,122 @@
+namespace: monitoring
+
+storageClass:
+  name: longhorn 
+
+alertmanager:
+  enabled: true
+  image: docker.hasti.co/prom/alertmanager:v0.25.0
+  service:
+    type: ClusterIP
+
+grafana:
+  enabled: false
+  image: docker.hasti.co/grafana/grafana:9.5.2-ubuntu
+  service:
+    type: ClusterIP
+  storage: 1G
+
+
+kube_state_metrics:
+  enabled: false
+  image: docker.hasti.co/coreos/kube-state-metrics:latest #docker.hasti.co/kube-state-metrics/kube-state-metrics:v2.4.1 
+
+nodeExporter:
+  enabled: false
+  image: docker.hasti.co/prometheus/node-exporter:v1.3.1 #docker.hasti.co/prom/node-exporter:v1.5.0
+
+prometheus:
+  enabled: false
+  image: docker.hasti.co/bitnami/prometheus:2.48.0-debian-11-r0 
+  clusterName: production
+  replicas: 3
+  storage: 100Gi
+  resources:
+    limits:
+      cpu: 2
+      memory: 10Gi
+    requests:
+      cpu: 0.5
+      memory: 2Gi
+
+pushgateway:
+  enabled: true
+  image: docker.hasti.co/prom/pushgateway:v1.5.1
+  replicas: 1
+  service:
+    type: ClusterIP
+
+thanos:
+#  archive_bucket: thanos-ruler01
+  s3_secret: thanos-s3-credentials
+  image: docker.hasti.co/thanos/thanos:v0.31.0
+
+  query:
+    enabled: false
+    replicas: 2
+    # Other Query or Store Endpoints which need to be stacked should be specified here.
+#    extraArgs: {}
+    #  store: <IP>:<PORT>
+    resources:
+      limits:
+        cpu: 2
+        memory: 6Gi
+      requests:
+        cpu: 0.5
+        memory: 1Gi
+    service:
+      type: ClusterIP
+    scrape:
+      enabled: false
+      type: ClusterIP
+
+  compactor:
+    enabled: false
+    replicas: 1
+    resources:
+      limits:
+        cpu: 2
+        memory: 2Gi
+      requests:
+        cpu: 0.5
+        memory: 1Gi
+
+  store:
+    enabled: false
+    replicas: 1
+    resources:
+      limits:
+        cpu: 2
+        memory: 3Gi
+      requests:
+        cpu: 0.5
+        memory: 1Gi
+
+  ruler:
+    enabled: true
+    replicas: 1
+    rules_bucket: monitoring
+    service:
+      type: ClusterIP
+    resources:
+      limits:
+        cpu: 2
+        memory: 2Gi
+      requests:
+        cpu: 0.5
+        memory: 1Gi
+
+ingress:
+  enabled: true
+  ssl: true
+  grafana:
+    host: grafana-k8s.hasti.co
+  alertmanager:
+    host: alertmanager-stage-k8s.hasti.co
+  thanos:
+    host: thanos-k8s.hasti.co
+  ruler:
+    host: thanos-ruler-k8s.hasti.co
+
+certificate:
+  enabled: false

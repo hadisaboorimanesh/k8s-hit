@@ -1,0 +1,32 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: my-app-scaledobject
+  namespace: monitoring
+spec:
+  scaleTargetRef:
+    name: nginx-deployment
+    apiVersion: apps/v1
+    kind: Deployment
+  pollingInterval: 15
+  idleReplicaCount: 0
+  minReplicaCount: 1
+  maxReplicaCount: 5
+  cooldownPeriod: 30
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 60
+          policies:
+          - type: Percent
+            value: 100
+            periodSeconds: 15            
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://thanos-querier.monitoring.svc.cluster.local:9090  # Change this to the Prometheus service address
+        metricName: container_cpu_usage_seconds_total
+        query: avg(rate(container_cpu_usage_seconds_total{container!="",image!="",pod=~"nginx-deployment.*$",namespace="monitoring"}[1m]))
+        threshold: '0.075'  # Scale if the metric is greater than this value
+

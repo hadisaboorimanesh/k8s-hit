@@ -1,0 +1,54 @@
+{{- if .Values.certificate.enabled -}}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Values.ingress.grafana.host }}
+  namespace: {{ .Values.namespace }}
+spec:
+  dnsNames:
+    - {{ .Values.ingress.grafana.host }}
+  secretName: {{ .Values.ingress.grafana.host }}
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Values.ingress.alertmanager.host }}
+  namespace: {{ .Values.namespace }}
+spec:
+  dnsNames:
+    - {{ .Values.ingress.alertmanager.host }}
+  secretName: {{ .Values.ingress.alertmanager.host }}
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Values.ingress.query.host }}
+  namespace: {{ .Values.namespace }}
+spec:
+  dnsNames:
+    - {{ .Values.ingress.query.host }}
+  secretName: {{ .Values.ingress.query.host }}
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Values.ingress.ruler.host }}
+  namespace: {{ .Values.namespace }}
+spec:
+  dnsNames:
+    - {{ .Values.ingress.ruler.host }}
+  secretName: {{ .Values.ingress.ruler.host }}
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+
+{{- end }}

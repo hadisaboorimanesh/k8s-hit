@@ -1,0 +1,135 @@
+
+
+kubectl exec vault-0 -- vault operator init -key-shares=1 -key-threshold=1 -format=json > vault-cluster-keys.json
+cat vault-cluster-keys.json
+kubectl exec vault-0 -- vault operator unseal bplXOIv6WJns88plzwcFgUDKP9edHLLlT2pzy1h4QTQ=
+
+kubectl exec vault-0  -- vault login  s.FrMQR553OR3rTJPGGn1Vm98p
+kubectl exec vault-0 -- vault secrets enable  kv-v2
+kubectl exec vault-0  -- vault kv enable-versioning secret/
+
+vault kv  get   kv-v2/MySQL
+
+vault kv put secret/mysql username=UserName
+
+
+
+ Setting up vault server in kubernetes
+The steps of init, unseal, login and enable secret path can be done through the vault-command-script.sh script. It is enough that this script together with vault-json-parse-script.py and the json file generated in the init step (if it has already been initialized and json is available) are placed together in the same folder and the POD_NAME and NAMESPACE variables be set in the script. These two scripts are placed in the script folder in the path of the vault version.
+
+Changing the registery path to pull images in the values.yaml file. Currently, the desired images (vault-k8s, vault, vault-csi-provider, vault) are available inside the company on two registries: dockerrepo.com and novinrepo:8082. Also, according to the standard, docker images are placed in the form of tar.gz.
+
+Execute the following command to deploy through helm:
+
+helm install vault ./hasicorp-vault/helm-chart -n security --create-namespac
+
+The path of the helm-chart folder should be modified according to the location of the command execution and the names of the folders.
+
+If this is the first time the vault is run, it needs to be initialized:
+
+kubectl exec vault-0 -n security -- vault operator init -key-shares=1 -key-threshold=1 -format=json > vault-cluster-keys.json
+
+where key-shares are the number of shamir keys and key-threshold are the number of keys required for unsealing. The keys and tokens created in the init step are stored in json format in a file named vault-cluster-keys in the same place where we executed the init command. If needed, the name and storage location of this file as well as the number of keys can be changed. The tosan-vault-cluster-keys.json file must be stored in a secure path because it contains the keys needed to unseal and also the token that other applications must have for communication. The token value is used in 2 places: 1) the spring.cloud.config.token field in the settings of projects that have stored their secret values ​​in the vault, such as the tosan-security project, and 2) the spring.cloud.vault field. token in bootstrap.yml related to cloud config project.
+
+Every time the vault is stopped, it needs to be unsealed. For this, according to the threshold that we specified during init, we must enter a number of the created keys with the following command:
+
+kubectl exec vault-0 -n security -- vault operator unseal <-key->
+
+We have to execute this command with different keys according to the threshold number.
+
+If the initialized value is true and the sealed value is false in the answer to the following command, the Vault is ready:
+
+kubectl exec vault-0 -n security -- vault status
+
+To work with the wallet, it is necessary to log in with a token. In the case that the values ​​of the keys are read through cloud config and we do not have any other changes such as putting new keys, this step is not needed and the token is sent along with the request by cloud config:
+kubectl exec vault-0 -n security -- vault login <-token->
+
+This is the same root token that was created in the init stage.
+
+If this is the first time the wallet is run, it needs to activate the Secrets as a key-value in a specific path:
+
+kubectl exec vault-0 -n security -- vault secrets enable -path=secret kv-v2
+
+If the secret activation command has already been executed and the key-value of version one has been created, it can be upgraded to version two using the following command:
+
+kubectl exec vault-0 -n security --vault kv enable-versioning secret/
+
+Adding a test key in the path (profile) of cloudclient: this can be done through two commands, put and patch. By using the put command, all the previous keys in the relevant profile are deleted and new values ​​are added, so it is necessary to add all the required keys with a put command:
+kubectl exec vault-0 -n security -- vault kv put secret/cloudclient username=UserName password=p@ssword url=jdbc:oracle:thin:@IP:Port:SID
+
+Using the patch command, the previous keys remain unchanged and new keys are added or replaced:
+
+kubectl exec vault-0 -n security --vault kv patch secret/cloudclient testkey=testvalue
+
+We will have a separate profile for each project that wants to keep its secrets in the vault, and the name of this profile is placed in the spring.cloud.config.name field in the relevant project settings. For example, if spring.cloud.config.name field is set to security for the tosan-security project, the keys are put as follows:
+
+kubectl exec vault-0 -n security -- vault kv put secret/tosan-security db.username=UserName db.password=p@ssword db.url=jdbc:oracle:thin:@192.168.238.3:1521:DEVELOP2 stimulussoft- username=stimuluser stimulsoft-password=stimulpass
+
+Or, if the database specifications for Tosun Security have already been added, it is possible to add the report generator specifications for it with the patch command:
+
+kubectl exec vault-0 -n security -- vault kv patch secret/tosan-security stimulsoft-username=stimuluser stimulsoft-password=stimulpass
+
+With this command, it is possible to see all the keys in the specified path (profile) and their version changes due to put and patches:
+kubectl exec vault-0 -n security -- vault kv get secret/<-profile->
+-------------------------------------------------------------------------------------------------------------------------------
+
+
+
+argocd app create secrets --repo https://github.com/hadisaboorimanesh/mysql.git --path '.' --dest-server https://kubernetes.default.svc --dest-na
+mespace test --config-management-plugin argocd-vault-plugin --sync-policy automated --self-heal
+
+
+--------------------------
+
+
+
+
+vault kv put kv-v2/argocd password="argocd"
+vault     kv   get  secret/argocd
+
+-------------------------------------------------
+vault policy write argocd - <<EOF
+path "secret/data/argocd" {
+  capabilities = ["read"]
+}
+EOF
+
+
+vault policy write argocd - <<EOF
+path "secret/argocd" {
+  capabilities = ["read"]
+}
+EOF
+
+
+vault policy write argocd-policy - <<EOF
+path "secret/data/argocd" {
+  capabilities = ["read"]
+}
+EOF
+
+--------------------------------------------------
+vault token create -policy=argocd-policy
+
+s.9w2a8b7X3XZIBzGmPo7LUAoF
+
+----------------------------------------------------------------
+vault     kv   get  -output-curl-string  secret/argocd
+ curl -H "X-Vault-Request: true" -H "X-Vault-Token: $(vault print token)" http://127.0.0.1:8200/v1/secret/data/argocd
+vault print token
+---------------------------
+
+
+argocd login  127.0.0.1:8080
+argocd app  diff argocd-vault-plugin --hard-refresh
+
+-------------------------------------
+
+vault policy write argocd - <<EOF
+path "secret/data/argocd" {
+  capabilities = ["read"]
+}
+EOF
+----------------------------
+
+

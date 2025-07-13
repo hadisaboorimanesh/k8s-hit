@@ -1,0 +1,23 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: remote-write-k8s.hasti.co
+  namespace: monitoring
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: remote-write-k8s.hasti.co
+    http:
+      paths:
+      - backend:
+          service:
+            name: thanos-receive
+            port:
+              number: 19291
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - remote-write-k8s.hasti.co
+    secretName: hasti-tls

@@ -1,0 +1,24 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hashring
+  namespace: monitoring
+stringData:
+  hashring.json: |-
+   [
+     {
+        "hashring": "tenant-a",
+        "endpoints": [
+            "receiver-store-1.monitoring.svc.cluster.local:10907"
+        ],
+        "tenants": ["a"]
+     },
+     {
+        "hashring": "tenant-b",
+        "endpoints": [
+            "receiver-store-2.monitoring.svc.cluster.local:10907"
+        ],
+        "tenants": ["b"]
+     }
+   ]

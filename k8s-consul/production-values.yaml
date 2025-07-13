@@ -1,0 +1,521 @@
+COMPUTED VALUES:
+apiGateway:
+  controller:
+    priorityClassName: ""
+    replicas: 1
+    service: {}
+  enabled: false
+  imageEnvoy: docker-proxy.hasti.co/envoyproxy/envoy:v1.25.1
+  initCopyConsulContainer:
+    resources:
+      limits:
+        cpu: 50m
+        memory: 150Mi
+      requests:
+        cpu: 50m
+        memory: 25Mi
+  logLevel: info
+  managedGatewayClass:
+    copyAnnotations: {}
+    enabled: true
+    serviceType: LoadBalancer
+    useHostPorts: false
+  resources:
+    limits:
+      cpu: 100m
+      memory: 100Mi
+    requests:
+      cpu: 100m
+      memory: 100Mi
+  serviceAccount: {}
+client:
+  containerSecurityContext: {}
+  enabled: false
+  exposeGossipPorts: false
+  extraConfig: |
+    {}
+  extraContainers: []
+  extraEnvironmentVars: {}
+  extraVolumes: []
+  grpc: true
+  hostNetwork: false
+  logLevel: ""
+  nodeMeta:
+    host-ip: ${HOST_IP}
+    pod-name: ${HOSTNAME}
+  priorityClassName: ""
+  resources:
+    limits:
+      cpu: 100m
+      memory: 100Mi
+    requests:
+      cpu: 100m
+      memory: 100Mi
+  securityContext:
+    fsGroup: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+    runAsUser: 100
+  serviceAccount: {}
+  tolerations: ""
+connectInject:
+  aclBindingRuleSelector: serviceaccount.name!=default
+  aclInjectToken: {}
+  apiGateway:
+    manageExternalCRDs: true
+    managedGatewayClass:
+      copyAnnotations: {}
+      deployment:
+        defaultInstances: 1
+        maxInstances: 1
+        minInstances: 1
+      mapPrivilegedContainerPorts: 0
+      openshiftSCCName: restricted-v2
+      serviceType: LoadBalancer
+    resources:
+      limits:
+        cpu: 100m
+        memory: 100Mi
+      requests:
+        cpu: 100m
+        memory: 100Mi
+    serviceAccount: {}
+  cni:
+    cniBinDir: /opt/cni/bin
+    cniNetDir: /etc/cni/net.d
+    enabled: false
+    multus: false
+    resourceQuota:
+      pods: 5000
+    resources:
+      limits:
+        cpu: 100m
+        memory: 100Mi
+      requests:
+        cpu: 75m
+        memory: 75Mi
+    securityContext:
+      runAsGroup: 0
+      runAsNonRoot: false
+      runAsUser: 0
+  consulNamespaces:
+    consulDestinationNamespace: default
+    mirroringK8S: true
+    mirroringK8SPrefix: ""
+  consulNode: {}
+  default: false
+  disruptionBudget:
+    enabled: true
+  enabled: false
+  failurePolicy: Fail
+  initContainer:
+    resources:
+      limits:
+        memory: 150Mi
+      requests:
+        cpu: 50m
+        memory: 25Mi
+  k8sAllowNamespaces:
+  - '*'
+  k8sDenyNamespaces: []
+  logLevel: ""
+  metrics:
+    defaultEnableMerging: false
+    defaultEnabled: '-'
+    defaultMergedMetricsPort: 20100
+    defaultPrometheusScrapePath: /metrics
+    defaultPrometheusScrapePort: 20200
+  namespaceSelector: |
+    matchExpressions:
+      - key: "kubernetes.io/metadata.name"
+        operator: "NotIn"
+        values: ["kube-system","local-path-storage","openebs"]
+  overrideAuthMethodName: ""
+  priorityClassName: ""
+  replicas: 1
+  resources:
+    limits:
+      cpu: 50m
+      memory: 200Mi
+    requests:
+      cpu: 50m
+      memory: 200Mi
+  serviceAccount: {}
+  sidecarProxy:
+    concurrency: 2
+    lifecycle:
+      defaultEnableShutdownDrainListeners: true
+      defaultEnabled: true
+      defaultGracefulPort: 20600
+      defaultGracefulShutdownPath: /graceful_shutdown
+      defaultShutdownGracePeriodSeconds: 30
+    resources:
+      limits: {}
+      requests: {}
+  transparentProxy:
+    defaultEnabled: true
+    defaultOverwriteProbes: true
+dns:
+  enableRedirection: '-'
+  enabled: '-'
+  type: ClusterIP
+externalServers:
+  enabled: false
+  grpcPort: 8502
+  hosts: []
+  httpsPort: 8501
+  skipServerWatch: false
+  useSystemRoots: false
+global:
+  acls:
+    annotations: null
+    bootstrapToken: {}
+    createReplicationToken: false
+    logLevel: ""
+    manageSystemACLs: true
+    partitionToken: {}
+    replicationToken: {}
+    resources:
+      limits:
+        cpu: 50m
+        memory: 50Mi
+      requests:
+        cpu: 50m
+        memory: 50Mi
+    tolerations: ""
+  adminPartitions:
+    enabled: false
+    name: default
+  cattle:
+    clusterId: c-m-6hwb4hs9
+    clusterName: production
+    rkePathPrefix: ""
+    rkeWindowsPathPrefix: ""
+    systemProjectId: p-cqd8b
+    url: https://rancher.hasti.co
+  cloud:
+    apiHost: {}
+    authUrl: {}
+    clientId: {}
+    clientSecret: {}
+    enabled: false
+    resourceId: {}
+    scadaAddress: {}
+  consulAPITimeout: 5s
+  datacenter: dc1
+  domain: consul
+  enableConsulNamespaces: false
+  enablePodSecurityPolicies: false
+  enabled: true
+  enterpriseLicense:
+    enableLicenseAutoload: true
+  extraLabels: {}
+  federation:
+    createFederationSecret: false
+    enabled: false
+    logLevel: ""
+    primaryGateways: []
+  gossipEncryption:
+    autoGenerate: false
+    logLevel: ""
+    secretKey: ""
+    secretName: ""
+  image: docker-proxy.hasti.co/hashicorp/consul:1.16.0
+  imageConsulDataplane: docker-proxy.hasti.co/hashicorp/consul-dataplane:1.2.0
+  imageK8S: docker-proxy.hasti.co/hashicorp/consul-k8s-control-plane:1.2.0
+  imagePullSecrets: []
+  logJSON: false
+  logLevel: info
+  metrics:
+    agentMetricsRetentionTime: 1m
+    enableAgentMetrics: false
+    enableGatewayMetrics: true
+    enableTelemetryCollector: false
+    enabled: false
+  openshift:
+    enabled: false
+  peering:
+    enabled: false
+  recursors: []
+  secretsBackend:
+    vault:
+      adminPartitionsRole: ""
+      ca:
+        secretKey: ""
+        secretName: ""
+      connectCA:
+        additionalConfig: |
+          {}
+        address: ""
+        authMethodPath: kubernetes
+        intermediatePKIPath: ""
+        rootPKIPath: ""
+      connectInject:
+        caCert: {}
+        tlsCert: {}
+      connectInjectRole: ""
+      consulCARole: ""
+      consulClientRole: ""
+      consulServerRole: ""
+      enabled: false
+      manageSystemACLsRole: ""
+  tls:
+    annotations: null
+    caCert: {}
+    caKey: {}
+    enableAutoEncrypt: false
+    enabled: false
+    httpsOnly: true
+    logLevel: ""
+    serverAdditionalDNSSANs: []
+    serverAdditionalIPSANs: []
+    verify: true
+  trustedCAs: []
+ingressGateways:
+  defaults:
+    consulNamespace: default
+    priorityClassName: ""
+    replicas: 1
+    resources:
+      limits:
+        cpu: 100m
+        memory: 100Mi
+      requests:
+        cpu: 100m
+        memory: 100Mi
+    service:
+      ports:
+      - nodePort: null
+        port: 8080
+      - nodePort: null
+        port: 8443
+      type: ClusterIP
+    serviceAccount: {}
+    terminationGracePeriodSeconds: 10
+    topologySpreadConstraints: ""
+  enabled: false
+  gateways:
+  - name: ingress-gateway
+  logLevel: ""
+meshGateway:
+  consulServiceName: mesh-gateway
+  containerPort: 8443
+  enabled: false
+  hostNetwork: false
+  initServiceInitContainer:
+    resources:
+      limits:
+        cpu: 50m
+        memory: 50Mi
+      requests:
+        cpu: 50m
+        memory: 50Mi
+  logLevel: ""
+  priorityClassName: ""
+  replicas: 1
+  resources:
+    limits:
+      cpu: 100m
+      memory: 100Mi
+    requests:
+      cpu: 100m
+      memory: 100Mi
+  service:
+    port: 443
+    type: LoadBalancer
+  serviceAccount: {}
+  topologySpreadConstraints: ""
+  wanAddress:
+    port: 443
+    source: Service
+    static: ""
+prometheus:
+  enabled: false
+server:
+  affinity: |
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app: {{ template "consul.name" . }}
+              release: "{{ .Release.Name }}"
+              component: server
+          topologyKey: kubernetes.io/hostname
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+            - key: environment
+              operator: In
+              values:
+              - "stage"
+  auditLogs:
+    enabled: false
+    sinks: []
+  connect: true
+  containerSecurityContext:
+    aclInit: null
+    tlsInit: null
+  disruptionBudget:
+    enabled: true
+  enabled: '-'
+  exposeGossipAndRPCPorts: false
+  exposeService:
+    enabled: '-'
+    nodePort: {}
+    type: LoadBalancer
+  extraConfig: |
+    {}
+  extraContainers: []
+  extraEnvironmentVars: {}
+  extraVolumes: []
+  limits:
+    requestLimits:
+      mode: disabled
+      readRate: -1
+      writeRate: -1
+  logLevel: ""
+  nodeSelector: ""
+  ports:
+    serflan:
+      port: 8301
+  priorityClassName: ""
+  replicas: 3
+  resources:
+    limits:
+      cpu: 100m
+      memory: 200Mi
+    requests:
+      cpu: 100m
+      memory: 200Mi
+  securityContext:
+    fsGroup: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+    runAsUser: 100
+  serverCert: {}
+  service: {}
+  serviceAccount: {}
+  snapshotAgent:
+    configSecret: {}
+    enabled: false
+    interval: 1h
+    resources:
+      limits:
+        cpu: 50m
+        memory: 50Mi
+      requests:
+        cpu: 50m
+        memory: 50Mi
+  storage: 1Gi
+  storageClass: longhorn
+  tolerations: ""
+  topologySpreadConstraints: ""
+  updatePartition: 0
+syncCatalog:
+  aclSyncToken: {}
+  addK8SNamespaceSuffix: true
+  consulNamespaces:
+    consulDestinationNamespace: default
+    mirroringK8S: true
+    mirroringK8SPrefix: ""
+  consulNodeName: k8s-sync
+  default: true
+  enabled: false
+  ingress:
+    enabled: false
+    loadBalancerIPs: false
+  k8sAllowNamespaces:
+  - '*'
+  k8sDenyNamespaces:
+  - kube-system
+  - kube-public
+  logLevel: ""
+  nodePortSyncType: ExternalFirst
+  priorityClassName: ""
+  resources:
+    limits:
+      cpu: 50m
+      memory: 50Mi
+    requests:
+      cpu: 50m
+      memory: 50Mi
+  serviceAccount: {}
+  syncClusterIPServices: true
+  toConsul: true
+  toK8S: true
+telemetryCollector:
+  cloud:
+    clientId: {}
+    clientSecret: {}
+  enabled: false
+  extraEnvironmentVars: {}
+  image: docker-proxy.hasti.co/hashicorp/consul-telemetry-collector:0.0.1
+  initContainer:
+    resources: {}
+  logLevel: ""
+  priorityClassName: ""
+  replicas: 1
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+    requests:
+      cpu: 1000m
+      memory: 512Mi
+  service: {}
+  serviceAccount: {}
+terminatingGateways:
+  defaults:
+    consulNamespace: default
+    extraVolumes: []
+    priorityClassName: ""
+    replicas: 1
+    resources:
+      limits:
+        cpu: 100m
+        memory: 100Mi
+      requests:
+        cpu: 100m
+        memory: 100Mi
+    serviceAccount: {}
+    topologySpreadConstraints: ""
+  enabled: false
+  gateways:
+  - name: terminating-gateway
+  logLevel: ""
+tests:
+  enabled: true
+ui:
+  dashboardURLTemplates:
+    service: ""
+  enabled: '-'
+  ingress:
+    enabled: true
+    hosts:
+    - backend:
+        port:
+          name: 80
+        service:
+          name: consul-ui
+      host: consul.tapsi.shop
+      pathType: ImplementationSpecific
+      paths:
+      - /
+    ingressClassName: nginx
+    pathType: Prefix
+    tls:
+    - hosts:
+      - consul.tapsi.shop
+      secretName: tapsishop-tls
+  metrics:
+    baseURL: http://prometheus-server
+    enabled: '-'
+    provider: prometheus
+  service:
+    enabled: true
+    nodePort: {}
+    port:
+      http: 80
+      https: 443
+webhookCertManager: {}

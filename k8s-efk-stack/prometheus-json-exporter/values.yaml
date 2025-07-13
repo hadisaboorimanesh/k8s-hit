@@ -1,0 +1,351 @@
+---
+# Default values for prometheus-json-exporter.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: docker.hasti.co/prometheuscommunity/json-exporter
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# Annotations for the Deployment
+deploymentAnnotations: {}
+
+podAnnotations: {}
+
+podSecurityContext: {}
+# fsGroup: 2000
+
+podLabels: {}
+
+securityContext: {}
+# capabilities:
+#   drop:
+#   - ALL
+# readOnlyRootFilesystem: true
+# runAsNonRoot: true
+# runAsUser: 1000
+
+livenessProbe:
+  httpGet:
+    path: /metrics
+    port: http
+readinessProbe:
+  httpGet:
+    path: /metrics
+    port: http
+
+service:
+  type: ClusterIP
+  port: 7979
+  targetPort: http
+  name: http
+  labels: {}
+  annotations: {}
+
+serviceMonitor:
+  ## If true, a ServiceMonitor CRD is created for a prometheus operator
+  ## https://github.com/coreos/prometheus-operator
+  ##
+  enabled: true
+
+  namespace: ""
+  scheme: http
+
+  # Default values that will be used for all ServiceMonitors created by `targets`
+  defaults:
+    additionalMetricsRelabels: {}
+    additionalRelabels: []
+    interval: 10s
+    labels: {}
+    scrapeTimeout: 30s
+
+  targets:
+    - name: example                    # Human readable URL that will appear in Prometheus / AlertManager
+      url: http://apm-server-apm-server.efk:6060/stats  # The URL that json-exporter will scrape
+#      labels: {}                       # Map of labels for ServiceMonitor. Overrides value set in `defaults`
+      interval: 60s                    # Scraping interval. Overrides value set in `defaults`
+      scrapeTimeout: 60s               # Scrape timeout. Overrides value set in `defaults`
+#      additionalMetricsRelabels: {}    # Map of metric labels and values to add
+#      additionalRelabels: []           # relabelings of metrics
+      module: apm          # Name of the module to pick up from `config.yaml` for scraping this target. Optional. Default is `default` provided by the exporter itself.
+
+ingress:
+  enabled: false
+  className: ""
+  labels: {}
+  annotations: {}
+  # kubernetes.io/ingress.class: nginx
+  # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+resources: {}
+# We usually recommend not to specify default resources and to leave this as a conscious
+# choice for the user. This also increases chances charts run on environments with little
+# resources, such as Minikube. If you do want to specify resources, uncomment the following
+# lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+# limits:
+#   cpu: 100m
+#   memory: 128Mi
+# requests:
+#   cpu: 100m
+#   memory: 128Mi
+
+## Number of replicasets to retain ##
+## default value is 10, 0 will not retain any replicasets and make rollbacks impossible ##
+revisionHistoryLimit: 10
+
+environmentVariables: []
+  # - name: some-secret-variable
+  #   valueFrom:
+  #     secretKeyRef:
+  #       key: some-key
+  #       name: some-secret-name
+  # - name: some-other-variable
+  #   value: some-value
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: []
+
+tolerations: []
+
+affinity: []
+configuration:
+  config: |
+    ---
+    modules:
+      apm:
+        metrics:
+          - name: apm_server_acm_request # 
+            type: object
+            path: '{ .apm-server.acm.request }'
+            labels:
+              component: "acm"
+              metric_type: "request"
+            values:
+              count: '{ .count }'
+
+          - name: apm_server_acm_response_total
+            type: object
+            path: '{ .apm-server.acm.response }'
+            labels:
+              component: "server"
+              metric_type: "response"
+            values:
+              count: '{ .count }'
+
+          - name: apm_processor_span_transformations
+            type: object
+            path: '{ .apm-server.processor.span }'
+            labels:
+              processor: "span"
+            values:
+              transformations: '{ .transformations }'
+
+          - name: apm_processor_metric_transformations
+            type: object
+            path: '{ .apm-server.processor.metric }'
+            labels:
+              processor: "metric"
+            values:
+              transformations: '{ .transformations }'
+
+          - name: apm_processor_error_transformations
+            type: object
+            path: '{ .apm-server.processor.error }'
+            labels:
+              processor: "metric"
+            values:
+              transformations: '{ .transformations }'
+
+          - name: apm_processor_transaction_transformations
+            type: object
+            path: '{ .apm-server.processor.transaction }'
+            labels:
+              processor: "transaction"
+            values:
+              transformations: '{ .transformations }'
+
+          - name: apm_stream_accepted
+            type: object
+            path: '{ .apm-server.processor.stream }'
+            labels:
+              processor: "stream"
+            values:
+              accepted: '{ .accepted }'
+
+          - name: apm_server_request_totoal
+            type: object
+            path: '{ .apm-server.server.request }'
+            values:
+              count: '{ .count }'
+
+          - name: apm_server_response_totoal
+            type: object
+            path: '{ .apm-server.server.response }'
+            values:
+              count: '{ .count }'
+
+          - name: apm_server_response_errors_totoal
+            type: object
+            path: '{ .apm-server.server.response.errors }'
+            values:
+              count: '{ .count }'                
+              internal: '{ .internal }'
+              queue: '{ .queue }'               
+              timeout: '{. timeout }'
+              unavailable: '{ . unavailable }' 
+
+          - name: apm_beat_cpu_user_ticks
+            type: object
+            path: '{ .beat.cpu.user }'
+            labels:
+              type: "user"
+            values:
+              ticks: '{ .ticks }'
+
+          - name: apm_beat_cpu_system_ticks
+            type: object
+            path: '{ .beat.cpu.system }'
+            labels:
+              type: "system"
+            values:
+              ticks: '{ .ticks }'
+
+          - name: apm_beat_memory_usage_bytes
+            type: object
+            path: '{ .beat.cgroup.memory.mem.usage }'
+            values:
+              bytes: '{ .bytes }'
+
+          - name: apm_beat_memory_limit_bytes
+            type: object
+            path: '{ .beat.cgroup.memory.mem.limit }'
+            values:
+              bytes: '{ .bytes }'
+
+          - name: apm_beat_memstats_rss
+            type: object
+            path: '{ .beat.memstats }'
+            values:
+              rss: '{ .rss }'
+
+          - name: apm_libbeat_output_events_total
+            type: object
+            path: '{ .libbeat.output.events }'
+            labels:
+              output: "total"
+            values:
+              total: '{ .total }'
+
+          - name: apm_libbeat_output_events_acked
+            type: object
+            path: '{ .libbeat.output.events }'
+            labels:
+              output: "acked"
+            values:
+              acked: '{ .acked }'
+
+          - name: apm_libbeat_output_bytes
+            type: object
+            path: '{ .libbeat.output.write }'
+            values:
+              bytes: '{ .bytes }'
+
+          - name: apm_libbeat_pipeline_events
+            type: object
+            path: '{ .libbeat.pipeline.events }'
+            values:
+              total: '{ .total }'
+
+          - name: apm_elasticsearch_bulk_requests_completed
+            type: object
+            path: '{ .output.elasticsearch.bulk_requests }'
+            values:
+              completed: '{ .completed }'
+
+          - name: apm_system_cpu_cores
+            type: object
+            path: '{ .system.cpu }'
+            values:
+              cores: '{ .cores }'
+
+
+        headers:
+          X-Dummy: my-test-header
+
+  # -- Structured configuration, takes precedence over `configuration.config`.
+  # Useful to be able to override specific configuration items, which is not possible with `configuration.config`.
+  # For instance: `--set configuration.structuredConfig.modules.test_module.http_client_config.basic_auth.username=foo`
+  structuredConfig: {}
+
+## Custom PrometheusRules to be defined
+## ref: https://github.com/coreos/prometheus-operator#customresourcedefinitions
+prometheusRule:
+  enabled: false
+  additionalLabels: {}
+  namespace: ""
+  rules: []
+
+additionalVolumes: []
+  # - name: password-file
+  #   secret:
+  #     secretName: secret-name
+
+additionalVolumeMounts: []
+  # - name: password-file
+  #   mountPath: "/tmp/mysecret.txt"
+  #   subPath: mysecret.txt
+
+## Additional init containers
+# These will be added to the prometheus-json-exporter pod.
+extraInitContainers: []
+  # - name: init-myservice
+  #   image: busybox:1.28
+  #   command: [ 'sh', '-c', "sleep 10; done" ]
+
+## Additional container arguments
+extraArgs: []
+#  - name: --config.file
+#    value: /app/config/myconfig.yml
+
+# Extra manifests to deploy as an array
+extraManifests: []
+  # - |
+  #   apiVersion: v1
+  #   kind: ConfigMap
+  #   metadata:
+  #   labels:
+  #     name: prometheus-json-exporter-extra
+  #   data:
+  #     extra-data: "value"

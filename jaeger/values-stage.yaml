@@ -1,0 +1,77 @@
+COMPUTED VALUES: null
+affinity: {}
+enableHttpOpenTelemetryCollector: false
+enableHttpZipkinCollector: false
+enabled: true
+environmentVariables:
+  BADGER_DIRECTORY_KEY: /badger/key
+  BADGER_DIRECTORY_VALUE: /badger/data
+  BADGER_EPHEMERAL: false
+  MEMORY_MAX_TRACES: 100000
+  SPAN_STORAGE_TYPE: memory
+fullnameOverride: ""
+healthCheckUrl: /
+image:
+  pullPolicy: IfNotPresent
+  repository: docker-proxy.hasti.co/jaegertracing/all-in-one
+  versionOverride: '*'
+imagePullSecrets: []
+ingress:
+  annotations: {}
+  className: nginx
+  enabled: true
+  hosts:
+  - host: jaeger.hasti.co
+    paths:
+    - path: /
+      pathType: ImplementationSpecific
+  tls:
+  - hosts:
+    - jaeger.hasti.co
+    secretName: hasti-tls
+livenessProbe:
+  failureThreshold: 3
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 3
+nameOverride: ""
+nodeSelector: {}
+podAnnotations:
+  prometheus.io/path: /metrics
+  prometheus.io/port: "14269"
+  prometheus.io/scrape: "false"
+podSecurityContext: {}
+readinessProbe:
+  failureThreshold: 3
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 3
+replicaCount: 1
+resources:
+  limits:
+    cpu: 2
+    memory: 4Gi
+  requests:
+    cpu: 1
+    memory: 2Gi
+securityContext:
+  runAsGroup: 0
+  runAsUser: 0
+service:
+  annotations:
+    prometheus.io/probe: "false"
+    prometheus.io/probe-path: /
+  headless:
+    annotations: {}
+  port: 16686
+  type: ClusterIP
+serviceAccount:
+  create: true
+terminationGracePeriodSeconds: 10
+tests:
+  enabled: false
+tolerations: []
+volume:
+  className: longhorn
+  enabled: true
+  size: 100Gi

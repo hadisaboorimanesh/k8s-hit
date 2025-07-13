@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-dex
+  namespace: argocd
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: argocd-dex.hasti.co
+    http:
+      paths:
+      - backend:
+          service:
+            name: argo-cd-argocd-dex-server
+            port:	
+              number: 5556
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - argocd-dex.hasti.co
+    secretName: hasti-tls

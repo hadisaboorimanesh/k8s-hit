@@ -1,0 +1,142 @@
+namespace: monitoring
+
+storageClass:
+  name: longhorn 
+
+alertmanager:
+  enabled: true
+  image: docker.hasti.co/prom/alertmanager:v0.28.1
+  service:
+    type: ClusterIP
+  affinity:
+    enabled: true      
+
+grafana:
+  enabled: true
+  image: docker.hasti.co/grafana/grafana:9.5.2-ubuntu
+  service:
+    type: ClusterIP
+  resources:
+    limits:
+      cpu: "1"
+      memory: 2Gi
+    requests:
+      cpu: "100m"
+      memory: 100Mi
+  storage: 1G
+  affinity:
+    enabled: true  
+
+kube_state_metrics:
+  enabled: true
+  image: docker.hasti.co/coreos/kube-state-metrics:latest #docker.hasti.co/kube-state-metrics/kube-state-metrics:v2.4.1 
+  affinity:
+    enabled: true    
+
+nodeExporter:
+  enabled: true
+  image: docker.hasti.co/prometheus/node-exporter:v1.3.1 #docker.hasti.co/prom/node-exporter:v1.5.0
+
+prometheus:
+  enabled: true
+  image: docker.hasti.co/bitnami/prometheus:2.48.0-debian-11-r0 
+  clusterName: production
+  replicas: 1
+  storage: 200Gi
+  resources:
+    limits:
+      cpu: "12"
+      memory: 20Gi
+    requests:
+      cpu: "4"
+      memory: 8Gi
+  affinity:
+    enabled: true        
+
+pushgateway:
+  enabled: true
+  image: docker.hasti.co/prom/pushgateway:v1.5.1
+  replicas: 1
+  service:
+    type: ClusterIP
+  affinity:
+    enabled: true      
+
+thanos:
+#  archive_bucket: thanos-ruler01
+  s3_secret: thanos-s3-credentials
+  image: docker.hasti.co/thanos/thanos:v0.31.0
+  query:
+    enabled: true
+    replicas: 3
+    resources:
+      limits:
+        cpu: 4
+        memory: 12Gi
+      requests:
+        cpu: 0.5
+        memory: 1Gi
+    service:
+      type: ClusterIP
+    scrape:
+      enabled: false
+      type: ClusterIP
+  affinity:
+    enabled: true        
+
+  compactor:
+    enabled: true
+    replicas: 1
+    resources:
+      limits:
+        cpu: 2
+        memory: 4Gi
+      requests:
+        cpu: 0.5
+        memory: 1Gi
+    affinity:
+      enabled: true         
+
+  store:
+    enabled: true
+    replicas: 1
+    resources:
+      limits:
+        cpu: 2
+        memory: 4Gi
+      requests:
+        cpu: 0.5
+        memory: 2Gi
+    affinity:
+      enabled: true          
+
+  ruler:
+    enabled: true
+    replicas: 1
+    rules_bucket: monitoring
+    service:
+      type: ClusterIP
+    resources:
+      limits:
+        cpu: 2
+        memory: 2Gi
+      requests:
+        cpu: 0.5
+        memory: 1Gi
+    affinity:
+      enabled: true          
+
+ingress:
+  enabled: true
+  ssl: true
+  grafana:
+    host: grafana-k8s.hasti.co
+  alertmanager:
+    host: alertmanager-k8s.hasti.co
+  thanos:
+    host: thanos-k8s.hasti.co
+  ruler:
+    host: thanos-ruler-k8s.hasti.co
+
+certificate:
+  enabled: false

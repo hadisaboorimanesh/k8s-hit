@@ -1,0 +1,100 @@
+{{- if .Values.nodeExporter.enabled -}}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+  namespace: {{ .Values.namespace }}
+  labels:
+    name: node-exporter
+spec:
+  selector:
+    matchLabels:
+      app: node-exporter
+  template:
+    metadata:
+      labels:
+        app: node-exporter
+      annotations:
+         prometheus.io/scrape: "true"
+         prometheus.io/port: "9100"
+    spec:
+      hostPID: true
+      hostIPC: true
+      hostNetwork: true
+      containers:
+        - name: node-exporter
+          image: {{ .Values.nodeExporter.image }}
+          securityContext:
+            privileged: true
+          args:
+            - --path.rootfs=/host
+            - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|boot|run)($$|/)  
+            - --collector.disable-defaults
+            - --collector.cpu
+            - --collector.meminfo
+            - --collector.filesystem
+            - --collector.loadavg
+            - --collector.time
+            - --collector.stat
+            - --collector.netdev
+            - --collector.diskstats
+            - --collector.vmstat
+            - --collector.pressure
+            - --collector.uname
+          ports:
+            - containerPort: 9100
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 100m
+              memory: 100Mi
+            requests:
+              cpu: 10m
+              memory: 100Mi
+          volumeMounts:
+            - name: dev
+              mountPath: /host/dev
+            - name: proc
+              mountPath: /host/proc
+            - name: sys
+              mountPath: /host/sys
+            - name: rootfs
+              mountPath: /host
+      volumes:
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: dev
+          hostPath:
+            path: /dev
+        - name: sys
+          hostPath:
+            path: /sys
+        - name: rootfs
+          hostPath:
+            path: /
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: node-exporter
+  namespace: {{ .Values.namespace }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9100"
+spec:
+  selector:
+    app: node-exporter
+  type: {{ .Values.nodeExporter.service.type }}
+  ports:
+  - name: node-exporter
+    protocol: TCP
+    port: 9100
+    targetPort: 9100
+---
+{{- end }}

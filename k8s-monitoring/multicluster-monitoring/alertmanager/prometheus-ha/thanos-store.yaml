@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: thanos-store-k8s.hasti.co
+  namespace: monitoring
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: thanos-stage-store-k8s.hasti.co
+    http:
+      paths:
+      - backend:
+          service:
+            name: thanos-store-gateway
+            port:
+              number: 10901
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - thanos-stage-store-k8s.hasti.co
+    secretName: hasti-tls

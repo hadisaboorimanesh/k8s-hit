@@ -1,0 +1,24 @@
+---
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+  when: ansible_pkg_mgr == 'apt'
+
+- name: Get helm installation script 
+  ansible.builtin.copy:
+    src: templates/get_helm.sh.j2
+    dest: /tmp/get_helm.sh
+    owner: root
+    group: root
+    mode: 0700
+
+- name: Install helm package manager
+  ansible.builtin.shell: /tmp/get_helm.sh 
+  args:
+    executable: /bin/bash
+     
+- name: Remove helm installation script from remote server
+  ansible.builtin.file:
+    path: /tmp/get_helm.sh
+    state: absent

@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: package-registry
+  namespace: efk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: package-registry
+  template:
+    metadata:
+      labels:
+        app: package-registry
+    spec:
+      containers:
+      - name: package-registry
+        image: docker.hasti.co/package-registry/distribution:8.5.3
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: package-registry
+  namespace: efk
+spec:
+  selector:
+    app: package-registry
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP
+---

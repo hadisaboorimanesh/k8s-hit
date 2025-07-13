@@ -1,0 +1,342 @@
+# -- Provide a name in place of `sql-exporter`
+nameOverride: ""
+# -- String to fully override "sql-exporter.fullname"
+fullnameOverride: ""
+
+image:
+  # -- Image repository
+  repository: docker.hasti.co/burningalchemist/sql_exporter
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Image tag
+  # @default -- `appVersion` value from `Chart.yaml`
+  tag: latest
+
+# -- Secrets with credentials to pull images from a private registry
+imagePullSecrets: []
+
+nodeSelector:
+  environment: "stage"
+
+service:
+  # -- Service type
+  type: ClusterIP
+  # -- Service port
+  port: 80
+  # -- Service labels
+  labels: {}
+  # -- Service annotations
+  annotations:
+    # example of prometheus usage
+     prometheus.io/scrape: "true"
+     prometheus.io/path: "/metrics"
+
+# -- Resource limits and requests for the application controller pods
+resources:
+  {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# -- Pod labels
+podLabels: {}
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Pod security context
+podSecurityContext:
+  {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+# @ignored
+securityContext: {}
+
+# Prometheus Operator values
+serviceMonitor:
+  # -- Enable ServiceMonitor
+  enabled: true
+  # -- ServiceMonitor interval
+  interval: 15s
+  # -- ServiceMonitor path
+  path: /metrics
+  # -- ServiceMonitor scrape timeout
+  # scrapeTimeout: 10s
+
+# Additional env variables
+# - kind should be either Secret or ConfigMap
+# - name is the name of the Secret or ConfigMap that should be used
+# - key is the key of the object inside of a Secret or ConfigMap
+# env:
+#   SQLEXPORTER_TARGET_DSN:
+#     from:
+#       kind: Secret
+#       name: sql_exporter_secret
+#       key: CONNECTION_STRING
+config:
+  global:
+    # -- Scrape timeout
+    scrape_timeout: 10s
+    # -- Scrape timeout offset. Must be strictly positive.
+    scrape_timeout_offset: 500ms
+    # -- Minimum interval between collector runs.
+    min_interval: 0s
+    # -- Number of open connections.
+    max_connections: 3
+    # -- Number of idle connections.
+    max_idle_connections: 3
+# Target and collectors are not set so the chart is more flexible. Please configure it yourself.
+  target:
+    name: "stage"
+    data_source_name: 'sqlserver://monitor:monitor@172.31.52.36:1433'
+    collectors: [mssql_standard]
+  collectors:
+    - collector_name: mssql_standard
+      metrics:
+          - metric_name: mssql_local_time_seconds
+            type: gauge
+            help: 'Local time in seconds since epoch (Unix time).'
+            values: [unix_time]
+            query: |
+              SELECT DATEDIFF(second, '19700101', GETUTCDATE()) AS unix_time
+
+          - metric_name: mssql_connections
+            type: gauge
+            help: 'Number of active connections.'
+            key_labels:
+              - db
+            values: [count]
+            query: |
+              SELECT DB_NAME(sp.dbid) AS db, COUNT(sp.spid) AS count
+              FROM sys.sysprocesses sp
+              GROUP BY DB_NAME(sp.dbid)
+          - metric_name: mssql_deadlocks
+            type: counter
+            help: 'Number of lock requests that resulted in a deadlock.'
+            values: [cntr_value]
+            query: |
+              SELECT cntr_value
+              FROM sys.dm_os_performance_counters WITH (NOLOCK)
+              WHERE counter_name = 'Number of Deadlocks/sec' AND instance_name = '_Total'
+
+          - metric_name: mssql_user_errors
+            type: counter
+            help: 'Number of user errors.'
+            values: [cntr_value]
+            query: |
+              SELECT cntr_value
+              FROM sys.dm_os_performance_counters WITH (NOLOCK)
+              WHERE counter_name = 'Errors/sec' AND instance_name = 'User Errors'
+
+          - metric_name: mssql_kill_connection_errors
+            type: counter
+            help: 'Number of severe errors that caused SQL Server to kill the connection.'
+            values: [cntr_value]
+            query: |
+              SELECT cntr_value
+              FROM sys.dm_os_performance_counters WITH (NOLOCK)
+              WHERE counter_name = 'Errors/sec' AND instance_name = 'Kill Connection Errors'
+
+          - metric_name: mssql_page_life_expectancy_seconds
+            type: gauge
+            help: 'The minimum number of seconds a page will stay in the buffer pool on this node without references.'
+            values: [cntr_value]
+            query: |
+              SELECT top(1) cntr_value
+              FROM sys.dm_os_performance_counters WITH (NOLOCK)
+              WHERE counter_name = 'Page life expectancy'
+
+          - metric_name: mssql_batch_requests
+            type: counter
+            help: 'Number of command batches received.'
+            values: [cntr_value]
+            query: |
+              SELECT cntr_value
+              FROM sys.dm_os_performance_counters WITH (NOLOCK)
+              WHERE counter_name = 'Batch Requests/sec'
+
+          - metric_name: mssql_log_growths
+            type: counter
+            help: 'Number of times the transaction log has been expanded, per database.'
+            key_labels:
+              - db
+            values: [cntr_value]
+            query: |
+              SELECT rtrim(instance_name) AS db, cntr_value
+              FROM sys.dm_os_performance_counters WITH (NOLOCK)
+              WHERE counter_name = 'Log Growths' AND instance_name <> '_Total'
+
+          - metric_name: mssql_buffer_cache_hit_ratio
+            type: gauge
+            help: 'Ratio of requests that hit the buffer cache'
+            values: [cntr_value]
+            query: |
+              SELECT cntr_value
+              FROM sys.dm_os_performance_counters
+              WHERE [counter_name] = 'Buffer cache hit ratio'
+
+          - metric_name: mssql_checkpoint_pages_sec
+            type: gauge
+            help: 'Checkpoint Pages Per Second'
+            values: [cntr_value]
+            query: |
+              SELECT cntr_value
+              FROM sys.dm_os_performance_counters
+              WHERE [counter_name] = 'Checkpoint pages/sec'
+
+          #
+          # Collected from sys.dm_io_virtual_file_stats
+          #
+          - metric_name: mssql_io_stall_seconds
+            type: counter
+            help: 'Stall time in seconds per database and I/O operation.'
+            key_labels:
+              - db
+            value_label: operation
+            values:
+              - read
+              - write
+            query_ref: mssql_io_stall
+          - metric_name: mssql_io_stall_total_seconds
+            type: counter
+            help: 'Total stall time in seconds per database.'
+            key_labels:
+              - db
+            values:
+              - io_stall
+            query_ref: mssql_io_stall
+
+          #
+          # Collected from sys.dm_os_process_memory
+          #
+          - metric_name: mssql_resident_memory_bytes
+            type: gauge
+            help: 'SQL Server resident memory size (AKA working set).'
+            values: [resident_memory_bytes]
+            query_ref: mssql_process_memory
+
+          - metric_name: mssql_virtual_memory_bytes
+            type: gauge
+            help: 'SQL Server committed virtual memory size.'
+            values: [virtual_memory_bytes]
+            query_ref: mssql_process_memory
+
+          - metric_name: mssql_memory_utilization_percentage
+            type: gauge
+            help: 'The percentage of committed memory that is in the working set.'
+            values: [memory_utilization_percentage]
+            query_ref: mssql_process_memory
+
+          - metric_name: mssql_page_fault_count
+            type: counter
+            help: 'The number of page faults that were incurred by the SQL Server process.'
+            values: [page_fault_count]
+            query_ref: mssql_process_memory
+
+          #
+          # Collected from sys.dm_os_sys_memory
+          #
+          - metric_name: mssql_os_memory
+            type: gauge
+            help: 'OS physical memory, used and available.'
+            value_label: 'state'
+            values: [used, available]
+            query: |
+              SELECT
+                (total_physical_memory_kb - available_physical_memory_kb) * 1024 AS used,
+                available_physical_memory_kb * 1024 AS available
+              FROM sys.dm_os_sys_memory
+
+          - metric_name: mssql_os_page_file
+            type: gauge
+            help: 'OS page file, used and available.'
+            value_label: 'state'
+            values: [used, available]
+            query: |
+              SELECT
+                (total_page_file_kb - available_page_file_kb) * 1024 AS used,
+                available_page_file_kb * 1024 AS available
+              FROM sys.dm_os_sys_memory
+      queries:
+        # Populates `mssql_io_stall` and `mssql_io_stall_total`
+        - query_name: mssql_io_stall
+          query: |
+            SELECT
+              cast(DB_Name(a.database_id) as varchar) AS [db],
+              sum(io_stall_read_ms) / 1000.0 AS [read],
+              sum(io_stall_write_ms) / 1000.0 AS [write],
+              sum(io_stall) / 1000.0 AS io_stall
+            FROM
+              sys.dm_io_virtual_file_stats(null, null) a
+            INNER JOIN sys.master_files b ON a.database_id = b.database_id AND a.file_id = b.file_id
+            GROUP BY a.database_id
+
+        # Populates `mssql_resident_memory_bytes`, `mssql_virtual_memory_bytes`, `mssql_memory_utilization_percentage` and
+        # `mssql_page_fault_count`.
+        - query_name: mssql_process_memory
+          query: |
+            SELECT
+              physical_memory_in_use_kb * 1024 AS resident_memory_bytes,
+              virtual_address_space_committed_kb * 1024 AS virtual_memory_bytes,
+              memory_utilization_percentage,
+              page_fault_count
+            FROM sys.dm_os_process_memory
+
+
+
+
+
+
+#     metrics:
+#       - metric_name: active_connections
+#         type: gauge
+#         help: 'Active connections'
+#         key_labels:
+#           - "datname"
+#           - "usename"
+#           - "state"
+#         values:
+#           - "count"
+#         query_ref: active_connections
+#     queries:
+#       - query_name: active_connections
+#         query: |
+#                 SELECT
+#                   datname::text,
+#                   usename::text,
+#                   state::text,
+#                   COUNT(state)::float AS count
+#                 FROM pg_stat_activity
+#                 GROUP BY datname, usename, state;
+#collector_files:
+#     - "*.collector.yml"
+
+# ---------------------------------------------------------------------
+# -- Collector Files
+# ---------------------------------------------------------------------
+# -- Collector files are mounted to /etc/sql_exporter/collectors dir
+# ---------------------------------------------------------------------
+#collectorFiles:
+#   mssql_standard.collector.yml:
+#     collector_name: pricing_data_freshness
+#     metrics:
+#       - metric_name: pricing_update_time
+#         type: gauge
+#         help: 'Time when prices for a market were last updated.'
+#         key_labels:
+#           # Populated from the `market` column of each row.
+#           - Market
+#         static_labels:
+#           # Arbitrary key/value pair
+#           portfolio: income
+#         values: [LastUpdateTime]
+#         query: |
+#           SELECT Market, max(UpdateTime) AS LastUpdateTime
+#           FROM MarketPrices
+#           GROUP BY Market

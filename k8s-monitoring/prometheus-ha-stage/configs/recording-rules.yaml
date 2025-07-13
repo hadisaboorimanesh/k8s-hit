@@ -1,0 +1,8 @@
+groups:
+- name: RecordingRules
+  rules:
+  - record: container_cpu_usage_irate
+    expr: avg( irate(container_cpu_usage_seconds_total[5m]) ) by (container)
+  - record: container_memory_usage_irate
+    expr:  avg( irate(container_memory_working_set_bytes[5m]) ) by (container)
+        

@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus-stage-k8s.hasti.co
+  namespace: monitoring
+  resourceVersion: "5309782"
+  uid: eac539bc-8a13-4691-9929-6467bafba9c2
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: prometheus-stage-k8s.hasti.co
+    http:
+      paths:
+      - backend:
+          service:
+            name: prometheus-server
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - prometheus-stage-k8s.hasti.co
+    secretName: hasti-tls

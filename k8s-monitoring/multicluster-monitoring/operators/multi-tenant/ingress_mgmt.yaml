@@ -1,0 +1,43 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: remote-write-url-mgmt
+  namespace: monitoring
+spec:
+  entryPoints:
+  - web
+  routes:
+  - kind: Rule
+    match: Host(`remotewrite.mgmt.dc.afranet.prod`) && (PathPrefix(`/api/v1/receive`))
+    middlewares:
+      - name: remote-write-url-redirect
+    services: 
+     - name: remote-write-url-redirect
+       port: 80
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: remote-write-url-redirect
+  namespace: monitoring
+spec:
+  headers:
+    customRequestHeaders:
+      THANOS-TENANT: a
+      Host: remote-write.dc.afranet.prod
+      
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: remote-write-url-redirect
+  namespace: monitoring
+spec:
+  type: ExternalName
+  externalName: remote-write.dc.afranet.prod
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP

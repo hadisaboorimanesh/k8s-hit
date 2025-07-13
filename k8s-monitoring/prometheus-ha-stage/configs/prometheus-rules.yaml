@@ -1,0 +1,731 @@
+groups:
+
+ - name: Container
+   rules:
+   - alert: Container restarted
+     annotations:
+       summary: "Container named {{$labels.container}} in {{$labels.pod}} in {{$labels.namespace}} was restarted\n"
+       description: "Namespace: {{$labels.namespace}}  Pod name: {{$labels.pod}}  Container name: {{$labels.container}}\n" 
+       resolved: Container named {{$labels.container}} in {{$labels.pod}} in {{$labels.namespace}} is resolved"
+     expr: |
+       sum(increase(kube_pod_container_status_restarts_total{namespace!="kube-system",pod_template_hash=""}[1m])) by (pod,namespace,container) > 0
+     for: 0m
+     labels:
+       severity: critical
+   - alert: High Memory Usage of Container 
+     annotations: 
+       summary: "Container named {{$labels.container}} in {{$labels.pod}} in {{$labels.namespace}} is using more than 75% of Memory Limit.\n"
+       description: "Cluster Name:  {{$externalLabels.cluster}} Namespace: {{$labels.namespace}} Pod name: {{$labels.pod}} Container name: {{$labels.container}}\n" 
+       resolved: "Container named {{$labels.container}} in {{$labels.pod}} in {{$labels.namespace}} is resolved"
+     expr: |
+       ((( sum(container_memory_working_set_bytes{image!="",container!="POD", namespace!="kube-system"}) by (namespace,container,pod)  / sum(container_spec_memory_limit_bytes{image!="",container!="POD",namespace!="kube-system"}) by (namespace,container,pod) ) * 100 ) < +Inf ) > 75
+     for: 5m
+     labels: 
+       severity: critical
+   - alert: High CPU Usage of Container 
+     annotations: 
+       summary: Container named {{$labels.container}} in {{$labels.pod}} in {{$labels.namespace}} is using more than 75% of CPU Limit
+       description: "Cluster Name:  {{$externalLabels.cluster}} Namespace: {{$labels.namespace}} Pod name: {{$labels.pod}} Container name: {{$labels.container}}" 
+       resolved: "Container named {{$labels.container}} in {{$labels.pod}} in {{$labels.namespace}} is resolved"
+     expr: |
+       ((sum(irate(container_cpu_usage_seconds_total{image!="",container!="POD", namespace!="kube-system"}[30s])) by (namespace,container,pod) / sum(container_spec_cpu_quota{image!="",container!="POD", namespace!="kube-system"} / container_spec_cpu_period{image!="",container!="POD", namespace!="kube-system"}) by (namespace,container,pod) ) * 100)  > 75
+     for: 5m
+     labels: 
+       severity: critical
+   - alert: High Persistent Volume Usage
+     annotations:
+       summary: "Persistent Volume named {{$labels.persistentvolumeclaim}} in {{$labels.namespace}} is using more than 75% used. \n"
+       description: "Cluster Name: {{$externalLabels.cluster}} Namespace: {{$labels.namespace}} PVC name: {{$labels.persistentvolumeclaim}}\n"
+       resolved: "Container named {{$labels.container}} in {{$labels.pod}} in {{$labels.namespace}} is resolved"
+     expr: |
+       ((((sum(kubelet_volume_stats_used_bytes{})  by (namespace,persistentvolumeclaim))  / (sum(kubelet_volume_stats_capacity_bytes{}) by (namespace,persistentvolumeclaim)))*100) < +Inf ) > 75
+     for: 5m
+     labels:
+       severity: critical
+ - name: Nodes
+   rules:
+   - alert: High Node Memory Usage
+     annotations:
+       summary: "Node {{$labels.kubernetes_io_hostname}} has more than 80% memory used. Plan Capcity\n"
+       description: "Cluster Name: {{$externalLabels.cluster}} ode: {{$labels.kubernetes_io_hostname}}\n" 
+       resolved: "Node {{$labels.kubernetes_io_hostname}} is resolved"
+     expr: |
+       (sum (container_memory_working_set_bytes{id="/",container!="POD"}) by (kubernetes_io_hostname) / sum (machine_memory_bytes{}) by (kubernetes_io_hostname) * 100) > 80
+     for: 5m
+     labels:
+       severity: critical
+       type: os-metrics
+   - alert: High Node CPU Usage
+     annotations:
+       summary: "Node {{$labels.kubernetes_io_hostname}} has more than 80% allocatable cpu used. Plan Capacity.\n"
+       description: "Cluster Name: {{$externalLabels.cluster}} ode: {{$labels.kubernetes_io_hostname}}\n" 
+       resolved: "Node {{$labels.kubernetes_io_hostname}} is resolved"
+     expr: |
+       (sum(rate(container_cpu_usage_seconds_total{id="/", container!="POD"}[1m])) by (kubernetes_io_hostname) / sum(machine_cpu_cores) by (kubernetes_io_hostname)  * 100) > 80
+     for: 5m
+     labels:
+       severity: critical
+       type: os-metrics
+   - alert: High Node Disk Usage
+     annotations:
+       summary: "Node {{$labels.kubernetes_io_hostname}} has more than 85% disk used. Plan Capacity.\n"
+       description: "Cluster Name: {{$externalLabels.cluster}} ode: {{$labels.kubernetes_io_hostname}}\n" 
+       resolved: "Node {{$labels.kubernetes_io_hostname}} is resolved"
+     expr: |
+       (sum(container_fs_usage_bytes{device=~"^/dev/[sv]d[a-z][1-9]$",id="/",container!="POD"}) by (kubernetes_io_hostname) / sum(container_fs_limit_bytes{container!="POD",device=~"^/dev/[sv]d[a-z][1-9]$",id="/"}) by (kubernetes_io_hostname)) * 100 > 85
+     for: 5m
+     labels:
+       severity: critical
+       type: os-metrics
+   - alert: Kubernetes Node down
+     expr: sum(up{job="kubernetes-nodes-cadvisor"} == 0) by (environment,instance,job)
+     for: 2m
+     labels:
+       severity: warning      
+       type: os-metrics
+     annotations:
+       summary: "Node {{ $labels.instance }} is down\n"
+       description: "Failed to scrape {{ $labels.job }} on {{ $labels.instance }}   {{ $labels.environment }} for more than 2 minutes. Node seems down.\n"   
+       resolved: "Node {{ $labels.instance }} is resolved and Up Now"
+   - alert: HostOutOfMemory
+     expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100 < 10
+     for: 2m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host out of memory (instance {{ $labels.instance }})\n"
+       description: "Node memory is filling up (< 10% left) VALUE = {{ $value }}\n"
+       resolved: "Host out of memory (instance {{ $labels.instance }}) is resolved"
+   - alert: HostMemoryUnderMemoryPressure
+     expr: rate(node_vmstat_pgmajfault[1m]) > 2000
+     for: 2m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host under memory pressure (instance {{ $labels.instance }})\n"
+       description: "The node is under heavy memory pressure. High rate of major page faults VALUE = {{ $value }}\n"
+       resolved: "Host under memory pressure (instance {{ $labels.instance }}) is resolved"
+   - alert: HostOutOfDiskSpace
+     expr: (node_filesystem_avail_bytes * 100) / node_filesystem_size_bytes < 10 and ON (instance, device, mountpoint) node_filesystem_readonly == 0
+     for: 2m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host out of disk space (instance {{ $labels.instance }})\n"
+       description: "Disk is almost full (< 10% left) VALUE = {{ $value }}\n"
+       resolved: "Host out of disk space (instance {{ $labels.instance }}) is resolved"
+   - alert: HostOutOfInodes
+     expr: node_filesystem_files_free{mountpoint ="/rootfs"} / node_filesystem_files{mountpoint="/rootfs"} * 100 < 10 and ON (instance, device, mountpoint) node_filesystem_readonly{mountpoint="/rootfs"} == 0
+     for: 2m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host out of inodes (instance {{ $labels.instance }})\n"
+       description: "Disk is almost running out of available inodes (< 10% left) VALUE = {{ $value }}\n"
+       resolved: "Host out of inodes (instance {{ $labels.instance }}) is resolved"
+   - alert: HostHighCpuLoad
+     expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 80
+     for: 0m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host high CPU load (instance {{ $labels.instance }})\n"
+       description: "CPU load is > 80% VALUE = {{ $value }}\n"
+       resolved: "Host CPU load (instance {{ $labels.instance }}) is resolved"
+   - alert: HostCpuStealNoisyNeighbor
+     expr: avg by(instance) (rate(node_cpu_seconds_total{mode="steal"}[5m])) * 100 > 10
+     for: 0m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host CPU steal noisy neighbor (instance {{ $labels.instance }})\n"
+       description: "CPU steal is > 10%. A noisy neighbor is killing VM performances or a spot instance may be out of credit. VALUE = {{ $value }}\n"
+       resolved: "Host CPU steal noisy neighbor (instance {{ $labels.instance }}) is resolved"
+   - alert: HostContextSwitching
+     expr: (rate(node_context_switches_total[5m])) / (count without(cpu, mode) (node_cpu_seconds_total{mode="idle"})) > 20000
+     for: 0m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host context switching (instance {{ $labels.instance }})\n"
+       description: "Context switching is growing on node (> 20000 / s) VALUE = {{ $value }}\n"
+       resolved: "Host context switching (instance {{ $labels.instance }}) is resolved"
+   - alert: HostSwapIsFillingUp
+     expr: (1 - (node_memory_SwapFree_bytes / node_memory_SwapTotal_bytes)) * 100 > 80
+     for: 2m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host swap is filling up (instance {{ $labels.instance }})\n"
+       description: "Swap is filling up (>80%) VALUE = {{ $value }}\n"
+       resolved: "Host swap  (instance {{ $labels.instance }}) is resolved"
+   - alert: HostSystemdServiceCrashed
+     expr: node_systemd_unit_state{state="failed"} == 1
+     for: 0m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host SystemD service crashed (instance {{ $labels.instance }})\n"
+       description: "SystemD service crashed VALUE = {{ $value }}\n"
+       resolved: "Host SystemD service  (instance {{ $labels.instance }}) is resolved"
+   - alert: HostPhysicalComponentTooHot
+     expr: node_hwmon_temp_celsius > 75
+     for: 5m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host physical component too hot (instance {{ $labels.instance }})\n"
+       description: "Physical hardware component too hot VALUE = {{ $value }}\n"
+       resolved: "Host physical component (instance {{ $labels.instance }}) is resolved"
+   - alert: HostNodeOvertemperatureAlarm
+     expr: node_hwmon_temp_crit_alarm_celsius == 1
+     for: 0m
+     labels:
+       severity: critical
+       type: os-metrics
+     annotations:
+       summary: "Host node overtemperature alarm (instance {{ $labels.instance }})\n"
+       description: "Physical node temperature alarm triggered VALUE = {{ $value }}\n"
+       resolved: "Host node overtemperature alarm (instance {{ $labels.instance }}) is resolved"
+   - alert: HostRaidArrayGotInactive
+     expr: node_md_state{state="inactive"} > 0
+     for: 0m
+     labels:
+       severity: critical
+       type: os-metrics
+     annotations:
+       summary: "Host RAID array got inactive (instance {{ $labels.instance }})\n"
+       description: "RAID array {{ $labels.device }} is in degraded state due to one or more disks failures. Number of spare drives is insufficient to fix issue automatically. VALUE = {{ $value }}\n"
+       resolved: "Host RAID  (instance {{ $labels.instance }}) is resolved"
+   - alert: HostRaidDiskFailure
+     expr: node_md_disks{state="failed"} > 0
+     for: 2m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host RAID disk failure (instance {{ $labels.instance }})\n"
+       description: "At least one device in RAID array on {{ $labels.instance }} failed. Array {{ $labels.md_device }} needs attention and possibly a disk swap VALUE = {{ $value }}\n"
+       resolved: "Host RAID disk  (instance {{ $labels.instance }}) is resolved"
+   - alert: HostOomKillDetected
+     expr: increase(node_vmstat_oom_kill[1m]) > 0
+     for: 0m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host OOM kill detected (instance {{ $labels.instance }})\n"
+       description: "OOM kill detected VALUE = {{ $value }}\n"
+       resolved: "Host  (instance {{ $labels.instance }}) is resolved"
+   - alert: HostEdacCorrectableErrorsDetected
+     expr: increase(node_edac_correctable_errors_total[1m]) > 0
+     for: 0m
+     labels:
+       severity: info
+       type: os-metrics
+     annotations:
+       summary: "Host EDAC Correctable Errors detected (instance {{ $labels.instance }})\n"
+       description: Instance has had {{ printf "%.0f" $value }} correctable memory errors reported by EDAC in the last 5 minutes. VALUE = {{ $value }}\n
+       resolved: "Host  (instance {{ $labels.instance }}) is resolved"
+   - alert: HostEdacUncorrectableErrorsDetected
+     expr: node_edac_uncorrectable_errors_total > 0
+     for: 0m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host EDAC Uncorrectable Errors detected (instance {{ $labels.instance }})\n"
+       description: Instance has had {{ printf "%.0f" $value }} uncorrectable memory errors reported by EDAC in the last 5 minutes. VALUE = {{ $value }}\n
+       resolved: "Host  (instance {{ $labels.instance }}) is resolved"
+   - alert: HostNetworkReceiveErrors
+     expr: rate(node_network_receive_errs_total[2m]) / rate(node_network_receive_packets_total[2m]) > 0.01
+     for: 2m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host Network Receive Errors (instance {{ $labels.instance }}:{{ $labels.device }})\n"
+       description: Instance interface has encountered {{ printf "%.0f" $value }} receive errors in the last five minutes. VALUE = {{ $value }}\n
+       resolved: "Host Network (instance {{ $labels.instance }}) is resolved"
+   - alert: HostNetworkTransmitErrors
+     expr: rate(node_network_transmit_errs_total[2m]) / rate(node_network_transmit_packets_total[2m]) > 0.01
+     for: 2m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host Network Transmit Errors (instance {{ $labels.instance }}:{{ $labels.device }})\n"
+       description: Instance has encountered {{ printf "%.0f" $value }} transmit errors in the last five minutes. VALUE = {{ $value }}\n
+       resolved: "Host Network (instance {{ $labels.instance }}) is resolved"
+   - alert: HostNetworkInterfaceSaturated
+     expr: (rate(node_network_receive_bytes_total{device!~"^tap.*"}[1m]) + rate(node_network_transmit_bytes_total{device!~"^tap.*"}[1m])) / node_network_speed_bytes{device!~"^tap.*"} > 0.8
+     for: 1m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host Network Interface Saturated (instance {{ $labels.instance }}:{{ $labels.interface }})\n"
+       description: "The network interface is getting overloaded. VALUE = {{ $value }}\n"
+   - alert: HostConntrackLimit
+     expr: node_nf_conntrack_entries / node_nf_conntrack_entries_limit > 0.8
+     for: 5m
+     labels:
+       severity: warning
+       type: os-metrics
+     annotations:
+       summary: "Host conntrack limit (instance {{ $labels.instance }})\n"
+       description: "The number of conntrack is approching limit VALUE = {{ $value }}\n"
+       resolved: "Host Network (instance {{ $labels.instance }}) is resolved"
+
+ - name: KubestateExporter
+   rules:
+   - alert: Deployment at 0 Replicas
+     annotations:
+       summary: "Deployment {{$labels.deployment}} is currently having no pods running\n"
+       description: "Cluster Name: {{$externalLabels.cluster}}Namespace: {{$labels.namespace}}Deployment name: {{$labels.deployment}}\n" 
+       resolved: "Deployment {{$labels.deployment}} is resolved"
+     expr: |
+       sum(kube_deployment_status_replicas{pod_template_hash=""}) by (deployment,namespace)  < 1
+     for: 1m
+     labels:
+       severity: critical
+   - alert: statefulset at 0 Replicas
+     annotations:
+       summary: "statefulset {{$labels.statefulset}} is currently having no pods running\n"
+       description: "Cluster Name: {{$externalLabels.cluster}}Namespace: {{$labels.namespace}}statefulset name: {{$labels.statefulset}}\n" 
+       resolved: "statefulset {{$labels.statefulset}} is resolved"
+     expr: |
+       sum(kube_statefulset_status_replicas{pod_template_hash=""}) by (statefulset,namespace)  < 1
+     for: 1m
+     labels:
+       severity: critical
+   - alert: KubernetesNodeunReady
+     expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+     for: 10m
+     labels:
+       severity: critical
+     annotations:
+       summary: "Kubernetes Node unready (instance {{ $labels.instance }})\n"
+       description: "Node {{ $labels.node }} has been unready for a long time VALUE = {{ $value }}\n"
+       resolved: "Kubernetes Node (instance {{ $labels.instance }}) is resolved"
+   - alert: KubernetesMemoryPressure
+     expr: kube_node_status_condition{condition="MemoryPressure",status="true"} == 1
+     for: 2m
+     labels:
+       severity: critical
+     annotations:
+       summary: "Kubernetes memory pressure (instance {{ $labels.instance }})\n"
+       description: "{{ $labels.node }} has MemoryPressure condition VALUE = {{ $value }}\n"
+       resolved: "Kubernetes memory pressure (instance {{ $labels.instance }}) is resolved"
+   - alert: KubernetesDiskPressure
+     expr: kube_node_status_condition{condition="DiskPressure",status="true"} == 1
+     for: 2m
+     labels:
+       severity: critical
+     annotations:
+       summary: "Kubernetes disk pressure (instance {{ $labels.instance }})\n"
+       description: "{{ $labels.node }} has DiskPressure condition VALUE = {{ $value }}\n"
+       resolved: "Kubernetes disk pressure (instance {{ $labels.instance }}) is resolved"
+   - alert: KubernetesNetworkUnavailable
+     expr: kube_node_status_condition{condition="NetworkUnavailable",status="true"} == 1
+     for: 2m
+     labels:
+       severity: critical
+     annotations:
+       summary: "Kubernetes network unavailable (instance {{ $labels.instance }})\n"
+       description: "{{ $labels.node }} has NetworkUnavailable condition VALUE = {{ $value }}\n"
+       resolved: "Kubernetes network  (instance {{ $labels.instance }}) is resolved and available"
+   - alert: KubernetesOutOfCapacity
+     expr: sum by (node) ((kube_pod_status_phase{phase="Running"} == 1) + on(uid) group_left(node) (0 * kube_pod_info{pod_template_hash=""})) / sum by (node) (kube_node_status_allocatable{resource="pods"}) * 100 > 90
+     for: 2m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Kubernetes out of capacity (instance {{ $labels.instance }})\n"
+       description: "{{ $labels.node }} is out of capacity VALUE = {{ $value }}\n"
+       resolved: "Kubernetes capacity  (instance {{ $labels.instance }}) is resolved and available"
+   - alert: KubernetesContainerOomKiller
+     expr: (kube_pod_container_status_restarts_total - kube_pod_container_status_restarts_total offset 10m >= 1) and ignoring (reason) min_over_time(kube_pod_container_status_last_terminated_reason{reason="OOMKilled"}[10m]) == 1
+     for: 0m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Kubernetes container oom killer (instance {{ $labels.instance }})\n"
+       description: "Container {{ $labels.container }} in pod {{ $labels.namespace }}/{{ $labels.pod }} has been OOMKilled {{ $value }} times in the last 10 minutes. VALUE = {{ $value }}\n"
+       resolved: "Kubernetes container  (instance {{ $labels.instance }}) is resolved and available"
+   - alert: KubernetesJobFailed
+     expr: kube_job_status_failed > 0
+     for: 0m
+     labels:
+       severity: warning 
+     annotations:
+       summary: "Kubernetes Job failed (instance {{ $labels.instance }})\n"
+       description: "Job {{ $labels.namespace }}/{{ $labels.exported_job }} failed to complete VALUE = {{ $value }}\n"
+       resolved: "Kubernetes Job (instance {{ $labels.instance }}) is resolved and available"
+   - alert: KubernetesCronjobSuspended
+     expr: kube_cronjob_spec_suspend != 0
+     for: 0m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Kubernetes CronJob suspended (instance {{ $labels.instance }})\n"
+       description: "CronJob {{ $labels.namespace }}/{{ $labels.cronjob }} is suspended VALUE = {{ $value }}\n"
+       resolved: "Kubernetes CronJob (instance {{ $labels.instance }}) is resolved and available"
+   - alert: KubernetesPersistentvolumeclaimPending
+     expr: kube_persistentvolumeclaim_status_phase{phase="Pending"} == 1
+     for: 2m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Kubernetes PersistentVolumeClaim pending (instance {{ $labels.instance }})\n"
+       description: "PersistentVolumeClaim {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} is pending VALUE = {{ $value }}\n"
+       resolved: "Kubernetes PersistentVolumeClaim (instance {{ $labels.instance }}) is resolved and available"
+   - alert: KubernetesVolumeOutOfDiskSpace
+     expr: kubelet_volume_stats_available_bytes / kubelet_volume_stats_capacity_bytes * 100 < 10
+     for: 2m
+     labels:
+       severity: warning 
+     annotations:
+       summary: "Kubernetes Volume out of disk space (instance {{ $labels.instance }})\n"
+       description: "Volume is almost full (< 10% left) VALUE = {{ $value }}\n"
+       resolved: "Kubernetes disk space (instance {{ $labels.instance }}) is resolved and available"
+   - alert: KubernetesPersistentvolumeError
+     expr: kube_persistentvolume_status_phase{phase=~"Failed|Pending", job="kube-state-metrics"} > 0
+     for: 0m
+     labels:
+       severity: critical
+     annotations:
+       summary: "Kubernetes PersistentVolume error (instance {{ $labels.instance }})\n"
+       description: "Persistent volume is in bad state VALUE = {{ $value }}\n"
+       resolved: "Kubernetes PersistentVolume (instance {{ $labels.instance }}) is resolved and available"
+   - alert: KubernetesStatefulsetDown
+     expr: kube_statefulset_replicas != kube_statefulset_status_replicas_ready > 0
+     for: 1m
+     labels:
+       severity: critical 
+     annotations:
+       summary: "Kubernetes StatefulSet down (instance {{ $labels.instance }})\n"
+       description: "{{ $labels.statefulset }} on  {{ $labels.namespace }}  StatefulSet went down VALUE = {{ $value }}\n"
+       resolved: "Kubernetes StatefulSet (instance {{ $labels.instance }}) is resolved and up"
+   - alert: KubernetesHpaScalingAbility
+     expr: kube_horizontalpodautoscaler_status_condition{status="false", condition="AbleToScale"} == 1
+     for: 2m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Kubernetes HPA scaling ability (instance {{ $labels.instance }})\n"
+       description: "Pod is unable to scale VALUE = {{ $value }}\n"
+       resolved: "Kubernetes HPA scaling (instance {{ $labels.instance }}) is resolved"
+   - alert: KubernetesHpaMetricAvailability
+     expr: kube_horizontalpodautoscaler_status_condition{status="false", condition="ScalingActive"} == 1
+     for: 0m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Kubernetes HPA metric availability (instance {{ $labels.instance }})\n"
+       description: "HPA is not able to collect metrics VALUE = {{ $value }}\n"
+       resolved: "Kubernetes HPA metric  (instance {{ $labels.instance }}) is resolved and availabile"
+   - alert: KubernetesPodNotHealthy
+     expr: sum by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Unknown|Failed"}) > 0
+     for: 15m
+     labels:
+       severity: critical
+     annotations:
+       summary: "Kubernetes Pod not healthy (instance {{ $labels.instance }})\n"
+       description: "Pod {{ $labels.pod }} on {{ $labels.namespace }} has been in a non-ready state for longer than 15 minutes. VALUE = {{ $value }}\n"
+       resolved: "Kubernetes Pod (instance {{ $labels.instance }}) is resolved and healthy"
+   - alert: KubernetesPodCrashLooping
+     expr: increase(kube_pod_container_status_restarts_total[1m]) > 3
+     for: 2m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Kubernetes pod crash looping (instance {{ $labels.instance }})\n"
+       description: "Pod {{ $labels.pod }} is crash looping VALUE = {{ $value }}\n"
+       resolved: "Kubernetes Pod (instance {{ $labels.instance }}) is resolved and healthy"
+   - alert: KubernetesReplicassetMismatch
+     expr: kube_replicaset_spec_replicas != kube_replicaset_status_ready_replicas
+     for: 10m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Kubernetes ReplicasSet mismatch (instance {{ $labels.instance }})  (replicaset {{ $labels.replicaset }}) (namespace {{ $labels.namespace }}) \n"
+       description: "Deployment Replicas (replicaset {{ $labels.replicaset }}) (namespace {{ $labels.namespace }})  mismatch VALUE = {{ $value }}\n"
+       resolved: "Kubernetes ReplicasSet  (instance {{ $labels.instance }})  (replicaset {{ $labels.replicaset }})  on (namespace {{ $labels.namespace }}) is resolved and healthy"
+   - alert: KubernetesDeploymentReplicasMismatch
+     expr: kube_deployment_spec_replicas != kube_deployment_status_replicas_available
+     for: 10m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Kubernetes Deployment replicas mismatch (instance {{ $labels.instance }})\n"
+       description: "{{ $labels.deployment }} on  {{ $labels.namespace }}  Deployment Replicas mismatch VALUE = {{ $value }}\n"
+       resolved: "Kubernetes Deployment replicas (instance {{ $labels.instance }})  is resolved"
+   - alert: KubernetesStatefulsetReplicasMismatch
+     expr: kube_statefulset_status_replicas_ready != kube_statefulset_status_replicas
+     for: 10m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Kubernetes StatefulSet replicas mismatch (instance {{ $labels.instance }})\n"
+       description: "{{ $labels.statefulset }} on  {{ $labels.namespace }} StatefulSet does not match the expected number of replicas. VALUE = {{ $value }}\n"
+       resolved: "Kubernetes StatefulSet  replicas (instance {{ $labels.instance }})  is resolved"
+   - alert: KubernetesDeploymentGenerationMismatch
+     expr: kube_deployment_status_observed_generation != kube_deployment_metadata_generation
+     for: 10m
+     labels:
+       severity: critical
+     annotations:
+       summary: "Kubernetes Deployment generation mismatch (instance {{ $labels.instance }})\n"
+       description: "{{ $labels.deployment }} on  {{ $labels.namespace }} Deployment has failed but has not been rolled back. VALUE = {{ $value }}\n"
+       resolved: "Kubernetes Deployment generation (instance {{ $labels.instance }})  is resolved"
+   - alert: KubernetesStatefulsetGenerationMismatch
+     expr: kube_statefulset_status_observed_generation != kube_statefulset_metadata_generation
+     for: 10m
+     labels:
+       severity: critical
+     annotations:
+       summary: "Kubernetes StatefulSet generation mismatch (instance {{ $labels.instance }})\n"
+       description: "{{ $labels.statefulset }} on  {{ $labels.namespace }} StatefulSet has failed but has not been rolled back. VALUE = {{ $value }}\n"
+       resolved: "Kubernetes StatefulSet generation (instance {{ $labels.instance }}) is resolved"
+   - alert: KubernetesStatefulsetUpdateNotRolledOut
+     expr: max without (revision) (kube_statefulset_status_current_revision unless kube_statefulset_status_update_revision) * (kube_statefulset_replicas != kube_statefulset_status_replicas_updated)
+     for: 10m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Kubernetes StatefulSet update not rolled out (instance {{ $labels.instance }})\n"
+       description: "{{ $labels.statefulset }} on  {{ $labels.namespace }} StatefulSet update has not been rolled out. VALUE = {{ $value }}\n"
+       resolved: "Kubernetes StatefulSet (instance {{ $labels.instance }}) is resolved"
+   - alert: KubernetesDaemonsetRolloutStuck
+     expr: kube_daemonset_status_number_ready / kube_daemonset_status_desired_number_scheduled * 100 < 100 or kube_daemonset_status_desired_number_scheduled - kube_daemonset_status_current_number_scheduled > 0
+     for: 10m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Kubernetes DaemonSet rollout stuck (instance {{ $labels.instance }})\n"
+       description: "Some Pods of DaemonSet are not scheduled or not ready VALUE = {{ $value }}\n"
+       resolved: "Kubernetes DaemonSet (instance {{ $labels.instance }}) is resolved"
+   - alert: KubernetesDaemonsetMisscheduled
+     expr: kube_daemonset_status_number_misscheduled > 0
+     for: 1m
+     labels:
+       severity: critical
+     annotations:
+       summary: "Kubernetes DaemonSet misscheduled (instance {{ $labels.instance }})\n"
+       description: "Some DaemonSet Pods are running where they are not supposed to run VALUE = {{ $value }}\n"
+       resolved: "Kubernetes DaemonSet (instance {{ $labels.instance }}) is resolved"
+   - alert: KubernetesJobSlowCompletion
+     expr: 'kube_job_spec_completions - kube_job_status_succeeded > 0'
+     for: 12h
+     labels:
+       severity: critical
+     annotations:
+       summary: "Kubernetes job slow completion (instance {{ $labels.instance }})\n"
+       description: "Kubernetes Job {{ $labels.namespace }}/{{ $labels.job_name }} did not complete in time. VALUE = {{ $value }}\n"
+       resolved: "Kubernetes job  (instance {{ $labels.instance }}) is resolved"
+ - name: elasticsearch
+   rules:
+   - alert: ElasticsearchHeapUsageTooHigh
+     expr: (elasticsearch_jvm_memory_used_bytes{area="heap"} / elasticsearch_jvm_memory_max_bytes{area="heap"}) * 100 > 90
+     for: 2m
+     labels:
+       severity: critical
+       type: monitoring-metrics
+     annotations:
+       summary: "Elasticsearch Heap Usage Too High (name {{ $labels.name }})\n"
+       description: "The heap usage is over 90%  VALUE = {{ $value }}\n"
+       resolved: "Elasticsearch Heap Usage (name {{ $labels.name }}) is resolved"
+   - alert: ElasticsearchHeapUsageWarning
+     expr: (elasticsearch_jvm_memory_used_bytes{area="heap"} / elasticsearch_jvm_memory_max_bytes{area="heap"}) * 100 > 80
+     for: 2m
+     labels:
+       severity: warning
+       type: monitoring-metrics
+     annotations:
+       summary: "Elasticsearch Heap Usage warning (name {{ $labels.name }})\n"
+       description: "The heap usage is over 80% VALUE = {{ $value }}\n"
+       resolved: "Elasticsearch Heap Usage (name {{ $labels.name }}) is resolved"
+   - alert: ElasticsearchDiskOutOfSpace
+     expr: elasticsearch_filesystem_data_available_bytes / elasticsearch_filesystem_data_size_bytes * 100 < 10
+     for: 0m
+     labels:
+       severity: critical
+       type: monitoring-metrics
+     annotations:
+       summary: "Elasticsearch disk out of space (name {{ $labels.name }})\n"
+       description: "The disk usage is over 90% VALUE = {{ $value }}\n"
+       resolved: "Elasticsearch disk space (name {{ $labels.name }}) is resolved"
+   - alert: ElasticsearchDiskSpaceLow
+     expr: elasticsearch_filesystem_data_available_bytes / elasticsearch_filesystem_data_size_bytes * 100 < 20
+     for: 2m
+     labels:
+       severity: warning
+       type: monitoring-metrics
+     annotations:
+       summary: "Elasticsearch disk space low (name {{ $labels.name }})\n"
+       description: "The disk usage is over 80% VALUE = {{ $value }}\n"
+       resolved: "Elasticsearch disk space (name {{ $labels.name }}) is resolved"
+   - alert: ElasticsearchClusterRed
+     expr: elasticsearch_cluster_health_status{color="red"} == 1
+     for: 0m
+     labels:
+       severity: critical
+       type: monitoring-metrics
+     annotations:
+       summary: "Elasticsearch Cluster Red (instance {{ $labels.instance }})\n"
+       description: "Elastic Cluster Red status VALUE = {{ $value }}\n"
+       resolved: "Elasticsearch Cluster (instance {{ $labels.instance }}) is resolved"
+   - alert: ElasticsearchClusterYellow
+     expr: elasticsearch_cluster_health_status{color="yellow"} == 1
+     for: 0m
+     labels:
+       severity: warning
+       type: monitoring-metrics
+     annotations:
+       summary: "Elasticsearch Cluster Yellow (instance {{ $labels.instance }})\n"
+       description: "Elastic Cluster Yellow status VALUE = {{ $value }}\n"
+       resolved: "Elasticsearch Cluster (instance {{ $labels.instance }}) is resolved"
+   - alert: ElasticsearchHealthyNodes
+     expr: elasticsearch_cluster_health_number_of_nodes < 3
+     for: 0m
+     labels:
+       severity: critical
+       type: monitoring-metrics
+     annotations:
+       summary: "Elasticsearch Healthy Nodes (instance {{ $labels.instance }})\n"
+       description: "Missing node in Elasticsearch cluster VALUE = {{ $value }}\n"
+       resolved: "Elasticsearch nodes (instance {{ $labels.instance }}) is resolved"
+   - alert: ElasticsearchHealthyDataNodes
+     expr: elasticsearch_cluster_health_number_of_data_nodes < 3
+     for: 0m
+     labels:
+       severity: critical
+       type: monitoring-metrics
+     annotations:
+       summary: "Elasticsearch Healthy Data Nodes (instance {{ $labels.instance }})\n"
+       description: "Missing data node in Elasticsearch cluster VALUE = {{ $value }}\n"
+       resolved: "Elasticsearch data nodes (instance {{ $labels.instance }}) is resolved"
+   - alert: ElasticsearchRelocatingShards
+     expr: elasticsearch_cluster_health_relocating_shards > 0
+     for: 0m
+     labels:
+       severity: info
+       type: monitoring-metrics
+     annotations:
+       summary: "Elasticsearch relocating shards (instance {{ $labels.instance }})\n"
+       description: "Elasticsearch is relocating shards VALUE = {{ $value }}\n"
+       resolved: "Elasticsearch relocating shards (instance {{ $labels.instance }}) is ended"
+   - alert: ElasticsearchRelocatingShardsTooLong
+     expr: elasticsearch_cluster_health_relocating_shards > 0
+     for: 15m
+     labels:
+       severity: warning
+       type: monitoring-metrics
+     annotations:
+       summary: "Elasticsearch relocating shards too long (instance {{ $labels.instance }})\n"
+       description: "Elasticsearch has been relocating shards for 15min VALUE = {{ $value }}\n"
+       resolved: "Elasticsearch relocating shards (instance {{ $labels.instance }}) is ended"
+   - alert: ElasticsearchInitializingShards
+     expr: elasticsearch_cluster_health_initializing_shards > 0
+     for: 0m
+     labels:
+       severity: info
+       type: monitoring-metrics
+     annotations:
+       summary: "Elasticsearch initializing shards (instance {{ $labels.instance }})\n"
+       description: "Elasticsearch is initializing shards VALUE = {{ $value }}\n"
+       resolved: "Elasticsearch relocating shards (instance {{ $labels.instance }}) is ended"
+   - alert: ElasticsearchInitializingShardsTooLong
+     expr: elasticsearch_cluster_health_initializing_shards > 0
+     for: 15m
+     labels:
+       severity: warning
+       type: monitoring-metrics
+     annotations:
+       summary: "Elasticsearch initializing shards too long (instance {{ $labels.instance }})\n"
+       description: "Elasticsearch has been initializing shards for 15 min VALUE = {{ $value }}\n"
+       resolved: "Elasticsearch relocating shards (instance {{ $labels.instance }}) is ended"
+   - alert: ElasticsearchUnassignedShards
+     expr: elasticsearch_cluster_health_unassigned_shards > 0
+     for: 0m
+     labels:
+       severity: critical
+       type: monitoring-metrics
+     annotations:
+       summary: "Elasticsearch unassigned shards (instance {{ $labels.instance }})\n"
+       description: "Elasticsearch has unassigned shards VALUE = {{ $value }}\n"
+       resolved: "Elasticsearch unassigned shards (instance {{ $labels.instance }}) is resolved"
+   - alert: ElasticsearchPendingTasks
+     expr: elasticsearch_cluster_health_number_of_pending_tasks > 0
+     for: 15m
+     labels:
+       severity: warning
+       type: monitoring-metrics
+     annotations:
+       summary: "Elasticsearch pending tasks (instance {{ $labels.instance }})\n"
+       description: "Elasticsearch has pending tasks. Cluster works slowly. VALUE = {{ $value }}\n"
+       resolved: "Elasticsearch pending tasks (instance {{ $labels.instance }}) is resolved"
+   - alert: ElasticsearchNoNewDocuments
+     expr: increase(elasticsearch_indices_indexing_index_total{es_data_node="true"}[10m]) < 1
+     for: 0m
+     labels:
+       severity: warning
+       type: monitoring-metrics
+     annotations:
+       summary: "Elasticsearch no new documents (instance {{ $labels.instance }})\n"
+       description: "No new documents for 10 min! VALUE = {{ $value }}\n"
+       resolved: "Elasticsearch documents  (instance {{ $labels.instance }}) is resolved"
+
+ - name: Nginx_alerts
+   rules:
+   - alert: NginxHighHttp5xxErrorRate
+     expr: sum(nginx_ingress_controller_requests{status!~"[5].*",ingress=~".*dartil"}) by (ingress) / sum(nginx_ingress_controller_requests{ingress=~".*dartil"}) by (ingress) * 100 < 97
+     for: 2m
+     labels:
+       severity: critical
+       type: monitoring-metrics
+     annotations:
+       summary: "Nginx high HTTP 5xx error rate (ingress {{ $labels.ingress }})\n"
+       description: "Too many HTTP requests with status 5xx (> 5%)\n  VALUE = {{ $value }}\n"
+       resolved: "Nginx high HTTP 5xx error for  (ingress {{ $labels.ingress }}) is resolved"
+   - alert: HighLatency
+     expr: histogram_quantile(0.95,sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{ingress=~".*dartil"}[15m])) by (le,ingress)) > 10
+     for: 1m
+     labels:
+       severity: critical
+       type: monitoring-metrics
+     annotations:
+       summary: "High Latency rate on (ingress {{ $labels.ingress }})\n"
+       description: "High Latency rate  on (ingress {{ $labels.ingress }})\n  VALUE = {{ $value }}\n"
+       resolved: "High Latency rate on (ingress {{ $labels.ingress }}) is resolved"
+   - alert: Highrequestrate
+     expr: sum(rate(nginx_ingress_controller_requests{ingress=~".*dartil"}[5m])) by (ingress) > 2000
+     for: 1m
+     labels:
+       severity: critical
+       type: monitoring-metrics
+     annotations:
+       summary: "High request rate on  (ingress {{ $labels.ingress }})\n"
+       description: "High request rate on  (ingress {{ $labels.ingress }})\n  VALUE = {{ $value }}\n"       
+       resolved: "High request rate on (ingress {{ $labels.ingress }}) is resolved"
+   - alert: Connectionrate
+     expr: sum(rate(nginx_ingress_controller_nginx_process_connections{controller_class="k8s.io/ingress-nginx"}[5m])) >200
+     for: 1m
+     labels:
+       severity: critical
+       type: monitoring-metrics
+     annotations:
+       summary: "High Connection rate on (ingress {{ $labels.ingress }})\n"
+       description: "High request rate on (ingress {{ $labels.ingress }})\n  VALUE = {{ $value }}\n"              
+       resolved: "High Connection rate on (ingress {{ $labels.ingress }}) is resolved"

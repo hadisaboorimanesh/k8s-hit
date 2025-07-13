@@ -1,0 +1,58 @@
+---
+
+- name: partition Longhorn
+  block:
+    - name: Check if Longhorn ns exists
+      command: ls /longhorn
+      register: longhorn_dir
+      ignore_errors: true
+      failed_when: "'rc' in longhorn_dir and longhorn_dir.rc != 0 and longhorn_dir.rc != 1"
+
+    - name: Partition /dev/sdc
+      parted:
+        device: /dev/sdc
+        number: 1
+        state: present
+        label: gpt
+        fs_type: xfs
+        part_start: 1%
+        part_end: 100%
+      when: 
+        - longhorn_dir.rc != 0
+        - rke2_type == 'agent'
+
+    - name: Create /longhorn directory
+      file:
+        path: /longhorn
+        state: directory
+      when: 
+        - longhorn_dir.rc != 0
+        - rke2_type == 'agent'
+
+    - name: Format the partition as XFS
+      command:
+        cmd: mkfs.xfs -f /dev/sdc1
+      when: 
+        - longhorn_dir.rc != 0
+        - rke2_type == 'agent'
+
+    - name: Mount /dev/sdc to /longhorn
+      mount:
+        path: /longhorn
+        src: /dev/sdc1
+        fstype: xfs
+        state: mounted
+        opts: defaults
+        passno: 0
+      when: 
+        - longhorn_dir.rc != 0
+        - rke2_type == 'agent'
+
+    - name: Save mount point to fstab
+      lineinfile:
+        path: /etc/fstab
+        line: "/dev/sdc1     /longhorn     xfs     defaults     0     0"
+        state: present
+      when: 
+        - longhorn_dir.rc != 0
+        - rke2_type == 'agent'

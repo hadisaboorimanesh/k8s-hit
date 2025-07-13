@@ -1,0 +1,102 @@
+{{- if .Values.thanos.compactor.enabled -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: thanos-compactor
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: thanos-compactor
+spec:
+  serviceName: thanos-compactor
+  replicas: {{ .Values.thanos.compactor.replicas }}
+  selector:
+    matchLabels:
+      app: thanos-compactor
+      thanos-store-api: "true"
+  template:
+    metadata:
+      labels:
+        app: thanos-compactor
+        thanos-store-api: "true"
+    spec:
+      {{- if index .Values "thanos" "compactor" "affinity" "enabled" }}      
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: environment
+                operator: In
+                values:
+                - monitoring      
+{{- end }}                  
+      containers:
+        - name: thanos
+          image: {{ .Values.thanos.image }}
+          args:
+            - compact
+            - --log.level=info
+            - --data-dir=/data
+            - --retention.resolution-raw=7d
+            - --retention.resolution-5m=10d
+            - --retention.resolution-1h=10d
+            - --delete-delay=48h
+            - --consistency-delay=30m
+            - --compact.concurrency=4
+            - --deduplication.replica-label=replica
+            - --block-viewer.global.sync-block-interval=5m                    
+            - "--objstore.config=$(S3_APPLICATION_CREDENTIALS)"
+            - --wait
+            - --wait-interval=5m            
+          env:
+            - name : S3_APPLICATION_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  key: thanos-s3-credentials.yaml
+                  name: thanos-s3-credentials
+            - name: GOGC
+              value: "75"
+            - name: GOMAXPROCS
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.cpu                  
+          ports:
+            - name: http
+              containerPort: 10902
+          livenessProbe:
+            httpGet:
+              port: http
+              path: /-/healthy
+          readinessProbe:
+            httpGet:
+              port: 10902
+              path: /-/ready
+          resources:
+            {{- toYaml .Values.thanos.compactor.resources | nindent 12 }}
+          volumeMounts:
+            - name: thanos-s3-credentials
+              mountPath: /etc/secret
+              readOnly: false
+            - name: timezone-volume
+              mountPath: /etc/timezone
+              readOnly: true
+            - name: localtime-volume
+              mountPath: /etc/localtime
+              readOnly: true                
+      volumes:
+        - name: thanos-s3-credentials
+          secret:
+            secretName: thanos-s3-credentials
+        - name: timezone-volume
+          hostPath:
+            path: /etc/timezone
+            type: File
+        - name: localtime-volume
+          hostPath:
+            path: /etc/localtime
+            type: File
+
+
+
+              
+{{- end }}

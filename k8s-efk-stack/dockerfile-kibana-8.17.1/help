@@ -1,0 +1,1 @@
+docker build . -t docker.hasti.co/library/kibana:8.17.1

@@ -1,0 +1,325 @@
+COMPUTED VALUES:
+cluster:
+  externalAccess:
+    enabled: false
+    hostMode: false
+    service:
+      annotations: {}
+      disableLoadBalancerIP: false
+      loadBalancerIP: []
+      loadBalancerIPAnnotaion: ""
+      loadBalancerSourceRanges: []
+      port: 6379
+      type: LoadBalancer
+  init: true
+  nodes: 6
+  replicas: 1
+  update:
+    addNodes: false
+    currentNumberOfNodes: 6
+    currentNumberOfReplicas: 1
+    newExternalIPs: []
+clusterDomain: cluster.local
+common:
+  exampleValue: common-chart
+  global:
+    imagePullSecrets: []
+    imageRegistry: ""
+    redis:
+      password: ""
+    storageClass: ""
+commonAnnotations: {}
+commonLabels: {}
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  enabled: true
+  privileged: false
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1001
+  seLinuxOptions: null
+  seccompProfile:
+    type: RuntimeDefault
+diagnosticMode:
+  args:
+  - infinity
+  command:
+  - sleep
+  enabled: false
+existingSecret: ""
+existingSecretPasswordKey: ""
+extraDeploy: []
+fullnameOverride: ""
+global:
+  imagePullSecrets: []
+  imageRegistry: ""
+  redis:
+    password: ""
+  storageClass: ""
+image:
+  debug: false
+  digest: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+  registry: docker-proxy.hasti.co
+  repository: bitnami/redis-cluster
+  tag: 7.2.4-debian-11-r5
+maxUnavailable: ""
+metrics:
+  containerPorts:
+    http: 9121
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    enabled: false
+  enabled: false
+  extraArgs: {}
+  extraEnvVars: []
+  image:
+    digest: ""
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+    registry: docker-proxy.hasti.co
+    repository: bitnami/redis-exporter
+    tag: 1.57.0-debian-11-r2
+  podAnnotations:
+    prometheus.io/port: '{{ .Values.metrics.containerPorts.http }}'
+    prometheus.io/scrape: "true"
+  podLabels: {}
+  priorityClassName: ""
+  prometheusRule:
+    additionalLabels: {}
+    enabled: false
+    namespace: ""
+    rules: []
+  resources: {}
+  service:
+    annotations: {}
+    clusterIP: ""
+    labels: {}
+    loadBalancerIP: ""
+    ports:
+      http: 9121
+    type: ClusterIP
+  serviceMonitor:
+    annotations: {}
+    enabled: false
+    interval: ""
+    jobLabel: ""
+    labels: {}
+    metricRelabelings: []
+    namespace: ""
+    relabelings: []
+    scrapeTimeout: ""
+    selector: {}
+minAvailable: ""
+nameOverride: ""
+networkPolicy:
+  allowExternal: true
+  allowExternalEgress: true
+  enabled: true
+  extraEgress: []
+  extraIngress: []
+  ingressNSMatchLabels: {}
+  ingressNSPodMatchLabels: {}
+password: ""
+persistence:
+  accessModes:
+  - ReadWriteOnce
+  annotations: {}
+  enabled: true
+  matchExpressions: {}
+  matchLabels: {}
+  path: /bitnami/redis/data
+  size: 8Gi
+  storageClass: longhorn
+  subPath: ""
+persistentVolumeClaimRetentionPolicy:
+  enabled: false
+  whenDeleted: Retain
+  whenScaled: Retain
+podDisruptionBudget: {}
+podSecurityContext:
+  enabled: true
+  fsGroup: 1001
+  fsGroupChangePolicy: Always
+  supplementalGroups: []
+  sysctls: []
+podSecurityPolicy:
+  create: false
+rbac:
+  create: false
+  role:
+    rules: []
+redis:
+  affinity: {}
+  args: []
+  automountServiceAccountToken: false
+  command: []
+  configmap: ""
+  containerPorts:
+    bus: 16379
+    redis: 6379
+  customLivenessProbe: {}
+  customReadinessProbe: {}
+  customStartupProbe: {}
+  defaultConfigOverride: ""
+  extraEnvVars: []
+  extraEnvVarsCM: ""
+  extraEnvVarsSecret: ""
+  extraVolumeMounts: []
+  extraVolumes: []
+  hostAliases: []
+  hostNetwork: false
+  initContainers: []
+  lifecycleHooks: {}
+  livenessProbe:
+    enabled: true
+    failureThreshold: 5
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    successThreshold: 1
+    timeoutSeconds: 5
+  nodeAffinityPreset:
+    key: ""
+    type: ""
+    values: []
+  nodeSelector: {}
+  podAffinityPreset: ""
+  podAnnotations: {}
+  podAntiAffinityPreset: soft
+  podLabels: {}
+  podManagementPolicy: Parallel
+  priorityClassName: ""
+  readinessProbe:
+    enabled: true
+    failureThreshold: 5
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    successThreshold: 1
+    timeoutSeconds: 1
+  resources:
+    limits: {}
+    requests: {}
+  schedulerName: ""
+  shareProcessNamespace: false
+  sidecars: []
+  startupProbe:
+    enabled: false
+    failureThreshold: 6
+    initialDelaySeconds: 300
+    path: /
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 5
+  tolerations: []
+  topologySpreadConstraints: []
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+  useAOFPersistence: "yes"
+service:
+  annotations: {}
+  clusterIP: ""
+  externalTrafficPolicy: Cluster
+  extraPorts: []
+  headless:
+    annotations: {}
+  labels: {}
+  loadBalancerIP: ""
+  loadBalancerSourceRanges: []
+  nodePorts:
+    redis: ""
+  ports:
+    redis: 6379
+  sessionAffinity: None
+  sessionAffinityConfig: {}
+  type: ClusterIP
+serviceAccount:
+  annotations: {}
+  automountServiceAccountToken: false
+  create: true
+  name: ""
+sysctlImage:
+  command: []
+  containerSecurityContext:
+    enabled: true
+    privileged: true
+    runAsUser: 0
+    seLinuxOptions: null
+  digest: ""
+  enabled: false
+  mountHostSys: false
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+  registry: docker-proxy.hasti.co
+  repository: bitnami/os-shell
+  resources:
+    limits: {}
+    requests: {}
+  tag: 11-debian-11-r96
+tls:
+  authClients: true
+  autoGenerated: false
+  certCAFilename: ""
+  certFilename: ""
+  certKeyFilename: ""
+  certificatesSecret: ""
+  dhParamsFilename: ""
+  enabled: false
+  existingSecret: ""
+updateJob:
+  activeDeadlineSeconds: 600
+  affinity: {}
+  annotations: {}
+  args: []
+  automountServiceAccountToken: false
+  command: []
+  extraEnvVars: []
+  extraEnvVarsCM: ""
+  extraEnvVarsSecret: ""
+  extraVolumeMounts: []
+  extraVolumes: []
+  helmHook: post-upgrade
+  hostAliases: []
+  initContainers: []
+  nodeAffinityPreset:
+    key: ""
+    type: ""
+    values: []
+  nodeSelector: {}
+  podAffinityPreset: ""
+  podAnnotations: {}
+  podAntiAffinityPreset: soft
+  podLabels: {}
+  priorityClassName: ""
+  resources:
+    limits:
+      cpu: 1
+      memory: 2Gi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  tolerations: []
+usePassword: true
+usePasswordFile: false
+volumePermissions:
+  containerSecurityContext:
+    enabled: true
+    privileged: false
+    runAsUser: 0
+    seLinuxOptions: null
+  enabled: false
+  image:
+    digest: ""
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+    registry: docker-proxy.hasti.co
+    repository: bitnami/os-shell
+    tag: 11-debian-11-r96
+  resources:
+    limits: {}
+    requests: {}

@@ -1,0 +1,136 @@
+{{- if .Values.thanos.query.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thanos-querier
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: thanos-querier
+spec:
+  replicas: {{ .Values.thanos.query.replicas }}
+  selector:
+    matchLabels:
+      app: thanos-querier
+  template:
+    metadata:
+      labels:
+        app: thanos-querier
+    spec:
+{{- if index .Values "thanos" "affinity" "enabled" }}      
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: environment
+                operator: In
+                values:
+                - monitoring 
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: thanos-querier
+              topologyKey: kubernetes.io/hostname                 
+{{- end }}                  
+      containers:
+      - name: thanos
+        image: {{ .Values.thanos.image }}
+        # Controls Go's garbage collection target percentage
+        env:
+          - name: GOGC
+            value: "75"
+          - name: GOMAXPROCS
+            valueFrom:
+              resourceFieldRef:
+                resource: limits.cpu  
+          - name: GOMEMLIMIT
+            valueFrom:
+              resourceFieldRef:
+                resource: limits.memory
+                divisor: "1Gi"   
+          - name: GO_MEMSTATS_INTERVAL
+            value: "5s"                                            
+        args:
+        - query
+        - --log.level=info
+        - --query.replica-label=prometheus_replica
+        - --grpc-address=0.0.0.0:10901
+        - --http-address=0.0.0.0:9090          
+        - --store=dnssrv+thanos-store-gateway:10901
+        - --query.timeout=5m
+        - --query.max-concurrent={{ .Values.thanos.query.maxConcurrent | default 20 }}
+        - --query.max-concurrent-select={{ .Values.thanos.query.maxConcurrentSelect | default 4 }}
+        - --store.response-timeout=5m
+        - --query.lookback-delta=5m
+        - --query.auto-downsampling
+        - --query.partial-response
+        - --store.sd-dns-interval=30s        
+        - --store.unhealthy-timeout=5m
+      {{- range $key, $value := .Values.thanos.query.extraArgs }}
+        - --{{ $key }}={{ $value }}
+      {{- end }}
+        ports:
+        - name: http
+          containerPort: 9090
+        - name: grpc
+          containerPort: 10901
+        livenessProbe:
+          httpGet:
+            port: http
+            path: /-/healthy
+          initialDelaySeconds: 30
+          timeoutSeconds: 30            
+        readinessProbe:
+          httpGet:
+            port: http
+            path: /-/ready
+          initialDelaySeconds: 30
+          timeoutSeconds: 30            
+        resources:
+          {{- toYaml .Values.thanos.query.resources | nindent 10 }}
+        volumeMounts:
+          - name: cache-volume
+            mountPath: /var/cache/thanos        
+          - name: timezone-volume
+            mountPath: /etc/timezone
+            readOnly: true
+          - name: localtime-volume
+            mountPath: /etc/localtime
+            readOnly: true          
+      volumes:
+        - name: cache-volume
+          emptyDir: 
+            medium: Memory
+            sizeLimit: 1Gi      
+        - name: timezone-volume
+          hostPath:
+            path: /etc/timezone
+            type: File
+        - name: localtime-volume
+          hostPath:
+            path: /etc/localtime
+            type: File
+              
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: thanos-querier
+  name: thanos-querier
+  namespace: {{ .Values.namespace }}
+spec:
+  type: {{ .Values.thanos.query.service.type }}
+  ports:
+  - port: 9090
+    protocol: TCP
+    targetPort: http
+    name: http
+  selector:
+    app: thanos-querier
+---
+{{- end }}

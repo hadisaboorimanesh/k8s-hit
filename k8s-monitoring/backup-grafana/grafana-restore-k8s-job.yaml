@@ -1,0 +1,25 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grafana-restore-backup
+  namespace: monitoring
+  labels:
+    app: grafana-backup-tool
+spec:
+  completions: 5
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: grafana-backup-restore
+        image: "docker-proxy.hasti.co/ysde/docker-grafana-backup-tool:1.2.4"
+        imagePullPolicy: Always
+        envFrom:
+        - configMapRef:
+            name: grafana-backup-tool
+        env:
+        - name: RESTORE
+          value: "true"
+        - name: ARCHIVE_FILE
+          value: "202503281308.tar.gz"  # Specify your backup file here

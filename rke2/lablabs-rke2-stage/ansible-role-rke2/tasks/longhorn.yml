@@ -1,0 +1,35 @@
+---
+
+- name: Install Longhorn
+  block:
+    - name: Check if Longhorn ns exists
+      command: /var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get ns longhorn-system
+      register: longhorn_ns
+      ignore_errors: true
+      failed_when: "'rc' in longhorn_ns and longhorn_ns.rc != 0 and longhorn_ns.rc != 1"
+    
+    - name: Copy prerequisites longhorn-iscsi-installation.yml
+      ansible.builtin.template:
+        src: longhorn-iscsi-installation.yml.j2
+        dest: /tmp/longhorn-iscsi-installation.yml
+        mode: "0755"
+      when: longhorn_ns.rc != 0
+
+    - name: Copy prerequisites longhorn-nfs-installation.yml
+      ansible.builtin.template:
+        src: longhorn-nfs-installation.yml.j2
+        dest: /tmp/longhorn-nfs-installation.yml
+        mode: "0755"
+      when: longhorn_ns.rc != 0
+
+    - name: longhorn-iscsi-installation
+      command: /var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml apply -f /tmp/longhorn-iscsi-installation.yml
+      when: longhorn_ns.rc != 0
+
+    - name: longhorn-nfs-installation
+      command: /var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml apply -f /tmp/longhorn-nfs-installation.yml
+      when: longhorn_ns.rc != 0
+
+    - name: Install Longhorn with Helm
+      command: helm install longhorn --create-namespace oci://harbor.hasti.co/helm/longhorn -n longhorn-system --kubeconfig=/etc/rancher/rke2/rke2.yaml
+      when: longhorn_ns.rc != 0

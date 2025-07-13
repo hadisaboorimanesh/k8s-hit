@@ -1,0 +1,283 @@
+global:
+   resolve_timeout: 5m
+   
+
+inhibit_rules:
+  - source_match:
+      severity: "critical"
+    target_match:
+      severity: "warning"
+    equal:
+      - alertname
+      - cluster
+      - namespace
+
+route:
+  receiver: 'default'
+  group_by: ['alertname', 'cluster', 'instance']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 8h
+
+  routes:
+  - match:
+      type: "telegram-alerts"
+    receiver: 'telegram'
+    group_wait: 5s
+    group_interval: 30s
+  - match:
+      cluster: "production"
+      namespace: "monitoring"
+    receiver: 'telegram-Monitoring'    
+  - match:
+      type: "os-metrics"
+    receiver: 'telegram-OperationSystem'   
+  - match:
+      type: "argocd-metrics"
+      dest_namespace: "stage"
+    receiver: 'telegram-Argocd'   
+    repeat_interval: 8h
+  - match:
+      type: "blackbox_metrics"
+    receiver: 'telegram-blackbox'    
+  - match:
+      type: "minio"
+    receiver: 'telegram-minio' 
+  - match:
+      type: "monitoring-metrics"
+    receiver: 'telegram-Monitoring'
+  - match:
+      kubernetes_namespace: "stage"
+    receiver: 'telegram-Production-Cluster'   
+  - match:
+      namespace: "stage"
+    receiver: 'telegram-Production-Cluster'      
+
+receivers:
+- name: 'default'
+- name: tapsishop
+  slack_configs:
+    - api_url: https://chat.tapsi.shop/hooks/cpjo3wx7z3gh8nuyfe3stx66yc
+      send_resolved: true
+      text: >-
+        {{ if eq .Status "firing" -}}
+        {{ range .Alerts -}} *Alert severity:* `{{ .Labels.severity }}`
+        *Description:* {{ .Annotations.description }} 
+        *Summary:* {{ .Annotations.summary }} 
+        {{ end }}
+        {{- else if eq .Status "resolved" -}}
+        {{ range .Alerts -}} 
+        *Alert severity:* `{{ .Labels.severity }}`
+        *Description:* {{ .Annotations.resolved }}
+        {{- "\n" -}} 
+        {{ end }}
+        {{ end }}
+      title: >-
+        [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{
+        .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname
+        }}    
+
+- name: telegram
+  telegram_configs:
+    - api_url: http://api-tg.nullip.ir
+      bot_token: '7174802265:AAEniql9UCp-QOGRJqSc48-HqsR3GGE34RY'
+      chat_id: -1002304806287
+      send_resolved: true
+      parse_mode: HTML
+      message: |
+        {{ if eq .Status "firing" -}}
+        {{ range .Alerts -}}
+        <b>Status:</b> 🔥
+        <b>Severity:</b> {{ .Labels.severity }}
+        <b>Name:</b> {{ .Labels.alertname }}
+        <b>Description:</b> {{ .Annotations.description }}
+        <b>Summary:</b> {{ .Annotations.summary }}
+        {{ end }}
+        {{- else if eq .Status "resolved" -}}
+        {{ range .Alerts -}}
+        <b>Status:</b> ✅
+        <b>Severity:</b> {{ .Labels.severity }}
+        <b>Description:</b> {{ .Annotations.resolved }}
+        {{ end }}
+        {{ end }}
+
+- name: my-telegram
+  telegram_configs:
+    - api_url: http://api-tg.nullip.ir
+      bot_token: '7174802265:AAEniql9UCp-QOGRJqSc48-HqsR3GGE34RY'
+      chat_id: 47795747
+      send_resolved: true
+      parse_mode: HTML
+      message: |
+        {{ if eq .Status "firing" -}}
+        {{ range .Alerts -}}
+        <b>Status:</b> 🔥
+        <b>Severity:</b> {{ .Labels.severity }}
+        <b>Name:</b> {{ .Labels.alertname }}
+        <b>Description:</b> {{ .Annotations.description }}
+        <b>Summary:</b> {{ .Annotations.summary }}
+        {{ end }}
+        {{- else if eq .Status "resolved" -}}
+        {{ range .Alerts -}}
+        <b>Status:</b> ✅
+        <b>Severity:</b> {{ .Labels.severity }}
+        <b>Description:</b> {{ .Annotations.resolved }}
+        {{ end }}
+        {{ end }}
+
+- name: telegram-blackbox
+  telegram_configs:
+    - api_url: http://api-tg.nullip.ir
+      bot_token: '7174802265:AAEniql9UCp-QOGRJqSc48-HqsR3GGE34RY'
+      chat_id: -1002666321653
+      message_thread_id: 10
+      send_resolved: true
+      parse_mode: HTML
+      message: |
+        {{ if eq .Status "firing" -}}
+        {{ range .Alerts -}}
+        <b>Status:</b> 🔥
+        <b>Severity:</b> {{ .Labels.severity }}
+        <b>Name:</b> {{ .Labels.alertname }}
+        <b>Description:</b> {{ .Annotations.description }}
+        <b>Summary:</b> {{ .Annotations.summary }}
+        {{ end }}
+        {{- else if eq .Status "resolved" -}}
+        {{ range .Alerts -}}
+        <b>Status:</b> ✅
+        <b>Severity:</b> {{ .Labels.severity }}
+        <b>Description:</b> {{ .Annotations.resolved }}
+        {{ end }}
+        {{ end }}
+
+- name: telegram-Production-Cluster
+  telegram_configs:
+    - api_url: http://api-tg.nullip.ir
+      bot_token: '7174802265:AAEniql9UCp-QOGRJqSc48-HqsR3GGE34RY'
+      chat_id: -1002666321653
+      message_thread_id: 28
+      send_resolved: true
+      parse_mode: HTML
+      message: |
+        {{ if eq .Status "firing" -}}
+        {{ range .Alerts -}}
+        <b>Status:</b> 🔥
+        <b>Severity:</b> {{ .Labels.severity }}
+        <b>Name:</b> {{ .Labels.alertname }}
+        <b>Description:</b> {{ .Annotations.description }}
+        <b>Summary:</b> {{ .Annotations.summary }}
+        {{ end }}
+        {{- else if eq .Status "resolved" -}}
+        {{ range .Alerts -}}
+        <b>Status:</b> ✅
+        <b>Severity:</b> {{ .Labels.severity }}
+        <b>Description:</b> {{ .Annotations.resolved }}
+        {{ end }}
+        {{ end }}
+
+- name: telegram-Monitoring
+  telegram_configs:
+    - api_url: http://api-tg.nullip.ir
+      bot_token: '7174802265:AAEniql9UCp-QOGRJqSc48-HqsR3GGE34RY'
+      chat_id: -1002666321653
+      message_thread_id: 8
+      send_resolved: true
+      parse_mode: HTML
+      message: |
+        {{ if eq .Status "firing" -}}
+        {{ range .Alerts -}}
+        <b>Status:</b> 🔥
+        <b>Severity:</b> {{ .Labels.severity }}
+        <b>Name:</b> {{ .Labels.alertname }}
+        <b>Description:</b> {{ .Annotations.description }}
+        <b>Summary:</b> {{ .Annotations.summary }}
+        {{ end }}
+        {{- else if eq .Status "resolved" -}}
+        {{ range .Alerts -}}
+        <b>Status:</b> ✅
+        <b>Severity:</b> {{ .Labels.severity }}
+        <b>Description:</b> {{ .Annotations.resolved }}
+        {{ end }}
+        {{ end }}
+
+- name: telegram-OperationSystem
+  telegram_configs:
+    - api_url: http://api-tg.nullip.ir
+      bot_token: '7174802265:AAEniql9UCp-QOGRJqSc48-HqsR3GGE34RY'
+      chat_id: -1002666321653
+      message_thread_id: 26
+      send_resolved: true
+      parse_mode: HTML
+      message: |
+        {{ if eq .Status "firing" -}}
+        {{ range .Alerts -}}
+        <b>Status:</b> 🔥
+        <b>Severity:</b> {{ .Labels.severity }}
+        <b>Name:</b> {{ .Labels.alertname }}
+        <b>Description:</b> {{ .Annotations.description }}
+        <b>Summary:</b> {{ .Annotations.summary }}
+        {{ end }}
+        {{- else if eq .Status "resolved" -}}
+        {{ range .Alerts -}}
+        <b>Status:</b> ✅
+        <b>Severity:</b> {{ .Labels.severity }}
+        <b>Description:</b> {{ .Annotations.resolved }}
+        {{ end }}
+        {{ end }}
+
+- name: telegram-Argocd
+  telegram_configs:
+    - api_url: http://api-tg.nullip.ir
+      bot_token: '7174802265:AAEniql9UCp-QOGRJqSc48-HqsR3GGE34RY'
+      chat_id: -1002666321653
+      message_thread_id: 6
+      send_resolved: true
+      parse_mode: HTML
+      message: |
+        {{ if eq .Status "firing" -}}
+        {{ range .Alerts -}}
+        <b>Status:</b> 🔥
+        <b>Severity:</b> {{ .Labels.severity }}
+        <b>Name:</b> {{ .Labels.alertname }}
+        <b>Description:</b> {{ .Annotations.description }}
+        <b>Summary:</b> {{ .Annotations.summary }}
+        {{ end }}
+        {{- else if eq .Status "resolved" -}}
+        {{ range .Alerts -}}
+        <b>Status:</b> ✅
+        <b>Severity:</b> {{ .Labels.severity }}
+        <b>Description:</b> {{ .Annotations.resolved }}
+        {{ end }}
+        {{ end }}
+
+- name: telegram-minio
+  telegram_configs:
+    - api_url: http://api-tg.nullip.ir
+      bot_token: '7174802265:AAEniql9UCp-QOGRJqSc48-HqsR3GGE34RY'
+      chat_id: -1002666321653
+      message_thread_id: 61
+      send_resolved: true
+      parse_mode: HTML
+      message: |
+        {{ if eq .Status "firing" -}}
+        {{ range .Alerts -}}
+        <b>Status:</b> 🔥
+        <b>Severity:</b> {{ .Labels.severity }}
+        <b>Name:</b> {{ .Labels.alertname }}
+        <b>Description:</b> {{ .Annotations.description }}
+        <b>Summary:</b> {{ .Annotations.summary }}
+        {{ end }}
+        {{- else if eq .Status "resolved" -}}
+        {{ range .Alerts -}}
+        <b>Status:</b> ✅
+        <b>Severity:</b> {{ .Labels.severity }}
+        <b>Description:</b> {{ .Annotations.resolved }}
+        {{ end }}
+        {{ end }}
+  webhook_configs:
+    - url: 'https://minio-webhook.tapsi.shop/minio/sync'
+      http_config:
+        basic_auth:
+          username: admin
+          password: admin
+      send_resolved: false        

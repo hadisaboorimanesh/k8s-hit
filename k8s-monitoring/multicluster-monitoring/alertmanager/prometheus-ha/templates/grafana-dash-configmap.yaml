@@ -1,0 +1,12 @@
+{{- if .Values.grafana.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  labels:
+    name: grafana-dashboards
+  namespace: {{ .Values.namespace }}
+data:
+  clustermetrics.json: |-
+{{ .Files.Get "configs/cluster-metrics.json" | indent 4 }}
+{{- end }}

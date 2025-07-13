@@ -1,0 +1,24 @@
+- name: Deploy RKE2
+  hosts: all
+  become: yes
+  vars:
+    rke2_airgap_mode: true
+    rke2_airgap_implementation: download
+    rke2_version: v1.31.4+rke2r1
+    rke2_cni: cilium
+    rke2_disable: rke2-ingress-nginx
+    rke2_download_kubeconf: true
+    rke2_ha_mode_keepalived: false  
+    rke2_custom_registry_mirrors:
+      - name: docker.io
+        endpoint: {https://docker-proxy.hasti.co}
+      - name: quay.io
+        endpoint: {https://docker-proxy.hasti.co}
+      - name: gcr.io
+        endpoint: {https://docker-proxy.hasti.co}
+      - name: registry.k8s.io
+        endpoint: {https://docker-proxy.hasti.co}
+      - name: ghcr.io
+        endpoint: {https://docker-proxy.hasti.co}        
+  roles:
+     - role: ansible-role-rke2

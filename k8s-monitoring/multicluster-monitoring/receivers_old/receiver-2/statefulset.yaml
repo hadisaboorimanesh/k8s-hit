@@ -1,0 +1,113 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: receiver-2
+  namespace: monitoring
+spec:
+  replicas: 1
+  serviceName: receiver
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: receiver
+      app.kubernetes.io/instance: receiver-2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: receiver
+        app.kubernetes.io/instance: receiver-2
+    spec:
+      serviceAccount: thanos
+      securityContext:
+        fsGroup: 1001
+      containers:
+        - name: receiver
+          env:
+           - name: POD_NAME
+             valueFrom:
+               fieldRef:
+                 fieldPath: metadata.name
+           - name: NAMESPACE
+             valueFrom:
+               fieldRef:
+                 fieldPath: metadata.namespace
+          image: docker-proxy.hasti.co/bitnami/thanos:0.32.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 1001
+          args:
+            - receive
+            - --tsdb.path=/data
+            - --tsdb.retention=1d
+            - --log.level=debug
+            - --grpc-address=0.0.0.0:10907
+            - --http-address=0.0.0.0:10909
+            - --receive.replication-factor=1
+            - --receive.default-tenant-id=b
+            - --receive.tenant-header=THANOS-TENANT
+            - --label=receive_replica="$(POD_NAME)"
+            - --label=receive_cluster="production"
+            - --receive.tenant-label-name=b
+            - --receive-forward-timeout=120s
+            - --objstore.config-file=/conf/objstore.yml
+            - --remote-write.address=0.0.0.0:10908
+            - --receive.hashrings-algorithm=ketama
+            - --receive.hashrings-file=/conf/hashring.json
+            - --receive.local-endpoint=receiver-store-2.monitoring.svc.cluster.local:10907
+          ports:
+            - name: http
+              containerPort: 10909
+              protocol: TCP
+            - name: grpc
+              containerPort: 10907
+              protocol: TCP
+            - name: remote-write
+              containerPort: 10908
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 6
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 30
+          readinessProbe:
+            failureThreshold: 6
+            httpGet:
+              path: /-/ready
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 30
+          resources:
+           limits:
+             cpu: "3"
+             memory: 12Gi
+           requests:
+             cpu: "2"
+             memory: 3Gi
+          volumeMounts:
+            - name: objstore
+              mountPath: /conf/objstore.yml
+              subPath: objstore.yml
+            - name: data
+              mountPath: /data
+            - name: hashring
+              mountPath: /conf/hashring.json
+              subPath: hashring.json
+      volumes:
+        - name: objstore
+          secret:
+            secretName: objstore
+
+        - name: hashring
+          secret:
+            secretName: hashring
+
+        - name: data
+          emptyDir: {}

@@ -1,0 +1,40 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  image: quay.stg.dc.afranet.co/prometheus/prometheus:v2.47.2
+  nodeSelector:
+    kubernetes.io/os: linux
+  externalLabels:
+    cluster: prod-management #This adds the  name of the cluster as label to all data that will be send to thanos reciver so you can filter data in thanos per cluster.
+    tenant: a #Cluster Tenant base on hashring.json file
+  replicas: 1
+  resources:
+    requests:
+      memory: 400Mi
+  securityContext:
+    fsGroup: 2000
+    runAsNonRoot: true
+    runAsUser: 1000
+  serviceAccountName: prometheus
+  version: v2.47.2
+  serviceMonitorSelector: {}
+  remoteWrite:
+    # To join to thanos cluster (central) from other clusters use this url:
+    - url: http://remotewrite.mgmt.dc.afranet.prod/api/v1/receive #change to domain name of ingressroutes for each cluster
+      writeRelabelConfigs:
+      - action: drop
+        regex: "^$"
+        sourceLabels:
+        - namespace
+        - pod
+        - container
+        - job
+      queueConfig:
+         maxSamplesPerSend: 500
+         maxShards: 100
+         capacity: 1000

@@ -1,0 +1,33 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+ name: querier-afranet-crt
+ namespace: monitoring
+spec:
+ secretName: querier-afranet-secret
+ renewBefore: 12h
+ dnsNames:
+   - querier.dc.afranet.prod
+ issuerRef:
+   name: selfsigned-prod
+   kind: ClusterIssuer
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: querier-url
+  namespace: monitoring
+spec:
+  entryPoints:
+      - web
+      - websecure
+  routes:
+   - kind: Rule
+     match: Host(`querier.dc.afranet.prod`)
+     services:
+     - name: querier
+       port: 9090
+  tls:
+    secretName: querier-afranet-secret
+

@@ -1,0 +1,31 @@
+{{- if .Values.ingressroute.enabled -}}
+{{- $fullName := include "grafana.fullname" . -}}
+{{- $servicePort := .Values.service.port -}}
+{{- $secretName := .Values.ingressroute.secretName -}}
+{{- $host := .Values.ingressroute.host -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-stage-k8s.hasti.co
+  namespace: monitoring
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: grafana-stage-k8s.hasti.co
+    http:
+      paths:
+      - backend:
+          service:
+            name: grafana
+            port:
+              number: 9090
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - grafana-stage-k8s.hasti.co
+    secretName: hasti-tls                                                 
+{{- end }}
+
+
+

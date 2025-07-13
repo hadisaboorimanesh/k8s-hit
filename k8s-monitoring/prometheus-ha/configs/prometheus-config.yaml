@@ -1,0 +1,551 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: $(CLUSTER_NAME)
+    # Each Prometheus has to have unique labels.
+    prometheus_replica: $(POD_NAME)
+
+rule_files:
+  - /etc/prometheus/rules/*rules.yaml
+
+alerting:
+
+  # We want our alerts to be deduplicated
+  # from different replicas.
+  alert_relabel_configs:
+  - regex: prometheus_replica
+    action: labeldrop
+
+  alertmanagers:
+    - scheme: http
+      path_prefix: /
+      static_configs:
+        - targets: ['alertmanager:9093']
+
+scrape_configs:
+- job_name: 'windows-servers'
+  static_configs:
+    - targets: ['172.31.52.228:9182']
+      labels:
+        environment: 'sql-test'
+    - targets: ['172.31.52.36:9182','172.31.58.34:9182','172.31.58.35:9182','172.31.58.37:9182']
+      labels:
+        environment: 'sql-stage'
+    - targets: ['172.31.52.2:9182']
+      labels:
+        environment: 'sql-azure'
+    - targets: ['172.31.59.2:9182','172.31.59.3:9182','172.31.59.4:9182']
+      labels:
+        environment: 'BI-Server'
+
+- job_name: 'france-crawler-servers'
+  static_configs:
+    - targets: ['91.134.180.8:9182','91.134.180.9:9182']
+
+- job_name: 'Minio-Client-Sync-to-Arvan'
+  static_configs:
+    - targets: ['minio.hasti.co:8595']
+      labels:
+        environment: 'Stage'
+
+- job_name: 'linux-servers'
+  static_configs:
+    - targets: ['172.31.52.229:9182','172.31.52.226:9182','172.31.52.38:9182','172.31.52.39:9182','172.31.52.42:9182','172.31.52.227:9182','172.31.53.82:9182','172.31.52.41:9182','172.31.58.30:9182','172.31.58.232:9182','172.31.58.231:9182','172.31.59.83:9182','172.31.52.43:9182','172.31.52.44:9182','172.31.52.45:9182','172.31.85.98:9182','172.31.85.99:9182','172.31.58.28:9182','172.31.58.242:9182']
+  
+- job_name: minio-servers
+  metrics_path: /minio/v2/metrics/cluster
+  scheme: http
+  static_configs:
+    - targets: ['172.24.128.77:9000']
+      labels:
+        minio_server: 'minio_archive'
+    - targets: ['172.31.52.42:9000']
+      labels:
+        minio_server: 'minio_admin'
+    - targets: ['minio.minio.svc.cluster.local:9000']
+      labels:
+        minio_server: 'minio_k8s'
+
+- job_name: 'blackbox-http-arvan'
+  scrape_interval: 10s
+  scrape_timeout: 5s
+  metrics_path: /probe
+  params:
+    module: [http_2xx]  
+  static_configs:
+    - targets:
+      - https://assets.tapsi.shop/index.html
+      - https://tapsi.shop
+      - https://vendor.tapsi.shop
+      - https://hasti.co
+      #- https://api.kavenegar.com/v1/0/utils/getdate.json   
+      #- https://tapsi.shop
+      #- https://admin.tapsi.shop
+      #- https://vendor.tapsi.shop
+      #- https://admingw.tapsi.shop
+      #- https://vendorgw.tapsi.shop
+      #- https://minio-admin.hasti.co
+      #- https://qcommercegw.tapsi.shop
+      #- https://api.alopeyk.com/api/v2
+      #- https://sandbox-api.alopeyk.com/api/v2/  
+      #- https://searchia.ir/api/hc
+      #- https://api.alopeyk.com/business-service
+      #- https://map.ir/reverse?lat=54.318756103515625&lon=29.024248123168945  
+      #- https://api.taroffexpress.com/api  
+      #- https://api-zap.chabok.app/
+      #- https://bpm.shaparak.ir
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: 188.121.100.72:9115 
+
+- job_name: 'blackbox-http-local'
+  scrape_interval: 60s
+  scrape_timeout: 10s
+  metrics_path: /probe
+  params:
+    module: [http_2xx]  
+  static_configs:
+    - targets:
+      - https://api.kavenegar.com/v1/6F522F5073304131676C6D5A3449537A6E6A706E415651586A342B4462515767777A7775413365727462673D/account/info.json
+      - https://api.alopeyk.com/api/v2
+      - https://searchia.ir/api/hc
+      - https://sep.shaparak.ir/
+      - https://pay.tara360.ir/pay/api
+      - https://bpm.shaparak.ir/pgwchannel/
+      #- https://api.alopeyk.com/business-service
+      # - https://map.ir/reverse?lat=54.318756103515625&lon=29.024248123168945  
+      #- https://api.taroffexpress.com/api  
+      #- https://api-zap.chabok.app/
+      #- https://bpm.shaparak.ir
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115
+
+- job_name: 'blackbox-sandbox-alopeyk-local'
+  scrape_interval: 60s
+  metrics_path: /probe
+  params:
+    module: [http_sandbox_alopeyk]  
+  static_configs:
+    - targets:
+      - https://sandbox-api.alopeyk.com/api/v2/
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115  
+
+# - job_name: 'blackbox-iplus-search'
+#   scrape_interval: 30s
+#   metrics_path: /probe
+#   params:
+#     module: [http_iplus_search]  
+#   static_configs:
+#     - targets:
+#       - https://apisearch.hasti.co/search
+#   relabel_configs:
+#     - source_labels: [__address__]
+#       target_label: __param_target
+#     - source_labels: [__param_target]
+#       target_label: instance
+#     - target_label: __address__
+#       replacement: blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115
+
+- job_name: 'blackbox-searchia-search-local'
+  scrape_interval: 60s
+  scrape_timeout: 10s
+  metrics_path: /probe
+  params:
+    module: [http_searchia]
+  static_configs:
+    - targets:
+      - https://searchia.ir/api/index/product?optionalFilters=is_available%3Cscore%3D1%3E&from=0&filters=is_available%3Atrue&size=100&filters=vendorId%3A1042047037807263744&lat=35.6997384&lon=51.3380605&query=%D8%AA%DB%8C%D9%86%D8%AA%20%D9%84%D8%A8
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115  
+
+- job_name: 'blackbox-web-engage-local'
+  scrape_interval: 60s
+  scrape_timeout: 10s
+  metrics_path: /probe
+  params:
+    module: [http_web_eng]
+  static_configs:
+    - targets:
+      - https://api.webengage.com/api/v1/accounts/76aab14/events
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115  
+
+# - job_name: 'blackbox-iplus-autocomplete'
+#   scrape_interval: 30s
+#   metrics_path: /probe
+#   params:
+#     module: [http_iplus_autocomplete]  
+#   static_configs:
+#     - targets:
+#     #  - https://api.iplussrv.com/autocomplete
+#   relabel_configs:
+#     - source_labels: [__address__]
+#       target_label: __param_target
+#     - source_labels: [__param_target]
+#       target_label: instance
+#     - target_label: __address__
+#       replacement: blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115  
+
+- job_name: 'blackbox-admingw-local'
+  metrics_path: /probe
+  params:
+    module: [http_2xx]  
+  static_configs:
+    - targets:
+      - https://admingw.tapsi.shop/integration/hc/live
+      - https://admingw.tapsi.shop/admin/idr/hc/live
+      - https://admingw.tapsi.shop/admin/notification/hc/live 
+      - https://admingw.tapsi.shop/admin/locality/hc/live
+      - https://admingw.tapsi.shop/Admin/GeneralData/hc/ready
+      - https://admingw.tapsi.shop/workflow/hc/live
+      - https://admingw.tapsi.shop/admin/catalog/hc/live  
+      - https://admingw.tapsi.shop/admin/cms/hc/live
+      - https://admingw.tapsi.shop/admin/sale/hc/live
+      - https://admingw.tapsi.shop/admin/report/hc/live
+      - https://admingw.tapsi.shop/admin/payment/hc/live
+      - https://admingw.tapsi.shop/admin/Social/hc/live
+      - https://admingw.tapsi.shop/admin/crm/hc/live
+      - https://admingw.tapsi.shop/admin/accounting/hc/live
+      - https://admingw.tapsi.shop/admin/audit/hc/live
+      - https://admingw.tapsi.shop/admin/wallet/hc/live
+      - https://admingw.tapsi.shop/integration/hc/live
+      - https://admingw.tapsi.shop/vas/hc/live
+      - https://admin.tapsi.shop
+      - https://minio-admin.hasti.co
+      - https://qcommercegw.dartil.com
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115  
+
+- job_name: 'blackbox-commercegw-arvan'
+  metrics_path: /probe
+  params:
+    module: [http_2xx]  
+  static_configs:
+    - targets:
+      - https://qcommercegw.tapsi.shop/web/idr/hc/live
+      - https://qcommercegw.tapsi.shop/web/locality/hc/live
+      - https://qcommercegw.tapsi.shop/web/cms/hc/live
+      - https://qcommercegw.tapsi.shop/web/generaldata/hc/live
+      - https://qcommercegw.tapsi.shop/web/cms/hc/live
+      - https://qcommercegw.tapsi.shop/web/sale/hc/live
+      - https://qcommercegw.tapsi.shop/web/payment/hc/live
+      - https://qcommercegw.tapsi.shop/web/social/hc/live
+      - https://qcommercegw.tapsi.shop/web/crm/hc/live
+      - https://qcommercegw.tapsi.shop/web/wallet/hc/live
+      - https://qcommercegw.tapsi.shop
+      
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: 188.121.100.72:9115
+
+- job_name: 'blackbox-vendorgw-arvan'
+  metrics_path: /probe
+  params:
+    module: [http_2xx]  
+  static_configs:
+    - targets:
+      - https://vendorgw.tapsi.shop/web/idr/hc/live
+      - https://vendorgw.tapsi.shop/web/locality/hc/live
+      - https://vendorgw.tapsi.shop/web/catalog/hc/live
+      - https://vendorgw.tapsi.shop/web/generaldata/hc/live
+      - https://vendorgw.tapsi.shop/web/cms/hc/live
+      - https://vendorgw.tapsi.shop/web/sale/hc/live
+      - https://vendorgw.tapsi.shop/web/payment/hc/live
+      - https://vendorgw.tapsi.shop/web/social/hc/live
+      - https://vendorgw.tapsi.shop/web/crm/hc/live
+      - https://vendorgw.tapsi.shop/web/wallet/hc/live
+      - https://vendorgw.tapsi.shop/web/Accounting/hc/live
+      - https://vendorgw.tapsi.shop/web/workflow/hc/live
+      - https://vendorgw.tapsi.shop/web/hub/hc/live
+      - https://vendorgw.tapsi.shop
+      
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: 188.121.100.72:9115
+
+- job_name: 'blackbox-icmp-local'
+  metrics_path: /probe
+  params:
+    module: [icmp]  
+  static_configs:
+    - targets:
+      - 172.31.52.228
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115
+
+
+- job_name: 'blackbox-tcp-local'
+  metrics_path: /probe
+  params:
+    module: [tcp_connect]  
+  static_configs:
+    - targets:
+      - 172.31.52.228:9182 
+      - mail.gig.services:587
+
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115  # The blackbox exporter's real hostname:port.
+
+- job_name: 'json-exporter-apm'
+  metrics_path: /probe
+  params:
+    module: [apm]  
+  static_configs:
+    - targets:
+      - http://apm-server-apm-server.efk.svc.cluster.local:6060/stats  
+
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: json-exporter-prometheus-json-exporter.efk.svc.cluster.local:7979  
+
+- job_name: 'json-exporter-local'
+  static_configs:
+    - targets: ['json-exporter-prometheus-json-exporter.efk.svc.cluster.local:7979']
+
+- job_name: 'blackbox-local'  
+  static_configs:
+    - targets: ['blackbox-exporter-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115']
+
+- job_name: 'blackbox-arvan'  
+  static_configs:
+    - targets: ['188.121.100.72:9115']
+
+- job_name: kubernetes-nodes-cadvisor
+  scrape_interval: 10s
+  scrape_timeout: 10s
+  scheme: https
+  tls_config:
+    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  kubernetes_sd_configs:
+    - role: node
+  relabel_configs:
+    - action: labelmap
+      regex: __meta_kubernetes_node_label_(.+)
+    # Only for Kubernetes ^1.7.3.
+    # See: https://github.com/prometheus/prometheus/issues/2916
+    - target_label: __address__
+      replacement: kubernetes.default.svc:443
+    - source_labels: [__meta_kubernetes_node_name]
+      regex: (.+)
+      target_label: __metrics_path__
+      replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+  metric_relabel_configs:
+    - action: replace
+      source_labels: [id]
+      regex: '^/machine\.slice/machine-rkt\\x2d([^\\]+)\\.+/([^/]+)\.service$'
+      target_label: rkt_container_name
+      replacement: '${2}-${1}'
+    - action: replace
+      source_labels: [id]
+      regex: '^/system\.slice/(.+)\.service$'
+      target_label: systemd_service_name
+      replacement: '${1}'
+
+- job_name: kubernetes-nodes-kubelet
+  scrape_interval: 10s
+  scrape_timeout: 10s
+  scheme: https
+  tls_config:
+    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  kubernetes_sd_configs:
+    - role: node
+  relabel_configs:
+    - action: labelmap
+      regex: __meta_kubernetes_node_label_(.+)
+    # Only for Kubernetes ^1.7.3.
+    # See: https://github.com/prometheus/prometheus/issues/2916
+    - target_label: __address__
+      replacement: kubernetes.default.svc:443
+    - source_labels: [__meta_kubernetes_node_name]
+      regex: (.+)
+      target_label: __metrics_path__
+      replacement: /api/v1/nodes/${1}/proxy/metrics
+  metric_relabel_configs:
+    - action: replace
+      source_labels: [id]
+      regex: '^/machine\.slice/machine-rkt\\x2d([^\\]+)\\.+/([^/]+)\.service$'
+      target_label: rkt_container_name
+      replacement: '${2}-${1}'
+    - action: replace
+      source_labels: [id]
+      regex: '^/system\.slice/(.+)\.service$'
+      target_label: systemd_service_name
+      replacement: '${1}'
+
+- job_name: 'kubernetes-pods'
+  kubernetes_sd_configs:
+    - role: pod
+  relabel_configs:
+    - action: labelmap
+      regex: __meta_kubernetes_pod_label_(.+)
+    - source_labels: [__meta_kubernetes_namespace]
+      action: replace
+      target_label: kubernetes_namespace
+    - source_labels: [__meta_kubernetes_pod_name]
+      action: replace
+      target_label: kubernetes_pod_name
+    - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+      action: keep
+      regex: true
+    - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scheme]
+      action: replace
+      target_label: __scheme__
+      regex: (https?)
+    - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+      action: replace
+      target_label: __metrics_path__
+      regex: (.+)
+    - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+      action: replace
+      target_label: __address__
+      regex: ([^:]+)(?::\d+)?;(\d+)
+      replacement: $1:$2
+  metric_relabel_configs:
+    - source_labels: [__name__]
+      regex: 'erlang.*'
+      action: drop         
+
+- job_name: 'kubernetes-apiservers'
+  kubernetes_sd_configs:
+    - role: endpoints
+  scheme: https 
+  tls_config:
+    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  relabel_configs:
+    - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+      action: keep
+      regex: default;kubernetes;https
+
+- job_name: 'kubernetes-service-endpoints'
+  scrape_interval: 10s
+  scrape_timeout: 10s
+  kubernetes_sd_configs:
+    - role: endpoints
+  relabel_configs:
+    - action: labelmap
+      regex: __meta_kubernetes_service_label_(.+)
+    - source_labels: [__meta_kubernetes_namespace]
+      action: replace
+      target_label: kubernetes_namespace
+    - source_labels: [__meta_kubernetes_service_name]
+      action: replace
+      target_label: kubernetes_name
+    - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+      action: keep
+      regex: true
+    - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+      action: replace
+      target_label: __scheme__
+      regex: (https?)
+    - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+      action: replace
+      target_label: __metrics_path__
+      regex: (.+)
+    - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+      action: replace
+      target_label: __address__
+      regex: (.+)(?::\d+);(\d+)
+      replacement: $1:$2
+  metric_relabel_configs:
+    - source_labels: [__name__]
+      regex: 'erlang.*'
+      action: drop
+- job_name: 'blackbox-dns-arvan'
+  scrape_interval: 5s
+  metrics_path: /probe
+  relabel_configs:
+  # Populate domain label with domain portion of __address__
+  - source_labels: [__address__]
+    regex: (.*):.*$
+    replacement: $1
+    target_label: domain
+  # Populate instance label with dns server IP portion of __address__
+  - source_labels: [__address__]
+    regex: .*:(.*)$
+    replacement: $1
+    target_label: instance
+  # Populate module URL parameter with domain portion of __address__
+  # This is a parameter passed to the blackbox exporter
+  - source_labels: [domain]
+    target_label: __param_module
+  # Populate target URL parameter with dns server IP
+  - source_labels: [instance]
+    target_label: __param_target
+  # Populate __address__ with the address of the blackbox exporter to hit
+  - target_label: __address__
+    replacement: 188.121.100.72:9115
+    
+  static_configs:
+    - targets:
+      - tapsi.shop:8.8.8.8
+      - tapsi.shop:1.1.1.1
+
+- job_name: 'internal-loadbalancers'
+  scheme: http
+  static_configs:
+    - targets: ['172.31.85.100:8405']
+  params: 
+    extra-counters: ["on"]
+    no-maint:
+      - empty
+
+- job_name: 'elasticsearch-vm'
+  static_configs:
+    - targets: ['172.31.58.28:9114']
+
