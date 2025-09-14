@@ -133,10 +133,10 @@ esJavaOpts: "-Xmx4g -Xms4g -XX:+UseG1GC -XX:InitiatingHeapOccupancyPercent=75 -X
 resources:
   requests:
     cpu: "200m"
-    memory: "3Gi"
+    memory: "4Gi"
   limits:
     cpu: "4000m"
-    memory: "5Gi"
+    memory: "6Gi"
 
 initResources: {}
   # limits:

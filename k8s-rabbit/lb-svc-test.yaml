@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-lb
+  namespace: test
+spec:
+  allocateLoadBalancerNodePorts: true
+  externalIPs:
+  - 172.31.59.36
+  externalTrafficPolicy: Cluster
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  loadBalancerIP: 172.31.59.36
+  ports:
+  - name: rabbitmq
+    port: 5672
+    protocol: TCP
+    targetPort: 5672
+  - name: webmqtt
+    port: 15675
+    protocol: TCP
+    targetPort: 15675
+  - name: mqtt
+    port: 1883
+    protocol: TCP
+    targetPort: 1883
+  selector:
+    app.kubernetes.io/instance: rabbitmq
+    app.kubernetes.io/name: rabbitmq
+  sessionAffinity: None
+  type: LoadBalancer

@@ -1,0 +1,129 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mattermost-postgres-secret
+  labels:
+    app: postgres
+stringData:
+  # The username for the Mattermost database user.
+  POSTGRES_USER: "mattermost"
+  # A strong, randomly generated password for the user.
+  POSTGRES_PASSWORD: "m3rvJx73Ci8Fv5v7"
+  # The name of the database Mattermost will use.
+  POSTGRES_DB: "mattermost"
+---
+# ------------------------------------------------------------------------------
+#  2. ConfigMap: For Non-Sensitive Configuration
+# ------------------------------------------------------------------------------
+# Best Practice: Externalize your database configuration into a ConfigMap. This
+# allows you to tune PostgreSQL settings without rebuilding your container image.
+# The data key ('postgresql.conf') will become a file that we mount into the pod.
+# ------------------------------------------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mattermost-postgres-config
+  labels:
+    app: postgres
+data:
+  postgresql.conf: |
+    # General Settings
+    max_connections = 200
+    shared_buffers = 512MB
+    effective_cache_size = 1536MB
+    maintenance_work_mem = 128MB
+    checkpoint_completion_target = 0.9
+    wal_buffers = 16MB
+    default_statistics_target = 100
+    random_page_cost = 1.1
+    effective_io_concurrency = 200
+    work_mem = 2621kB
+    min_wal_size = 1GB
+    max_wal_size = 4GB
+    timezone = 'Asia/Tehran'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mattermost-postgres
+  labels:
+    app: postgres
+spec:
+  ports:
+    - port: 5432
+      name: postgres
+  clusterIP: None # This makes the service "headless"
+  selector:
+    app: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mattermost-postgres
+spec:
+  serviceName: "mattermost-postgres" 
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: postgres
+          image: docker-proxy.hasti.co/library/postgres:14-alpine # Use a specific, stable version
+          envFrom:
+            - secretRef:
+                name: mattermost-postgres-secret
+          env: 
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+              name: postgres
+          # --- Health Checks (Probes) ---
+          # Best Practice: Configure probes to help Kubernetes manage the pod's health.
+          readinessProbe:
+            exec:
+              # pg_isready is a utility to check the connection status of a PostgreSQL server.
+              command: ["pg_isready", "-U", "mmuser", "-d", "mattermost"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "mmuser", "-d", "mattermost"]
+            initialDelaySeconds: 45
+            periodSeconds: 15
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: "500m" # 0.5 vCPU
+              memory: "2Gi"
+            limits:
+              cpu: "1000m" # 1 vCPU
+              memory: "2Gi" # Must match request for Guaranteed QoS
+          volumeMounts:
+            - name: mattermost-postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: postgres-config-volume
+              mountPath: /etc/postgresql/postgresql.conf
+              subPath: postgresql.conf # Mount the file, not the directory
+      volumes:
+        - name: postgres-config-volume
+          configMap:
+            name: mattermost-postgres-config # Link to the ConfigMap created above
+  volumeClaimTemplates:
+    - metadata:
+        name: mattermost-postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"] # This volume can only be mounted by one pod at a time
+        # IMPORTANT: Specify a StorageClass that provisions fast, reliable storage (e.g., SSD).
+        storageClassName: "longhorn"
+        resources:
+          requests:
+            storage: 20Gi # Adjust the size based on your needs
+

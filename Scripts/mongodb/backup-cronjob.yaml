@@ -1,0 +1,358 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mongodb-secret
+  namespace: develop  
+type: Opaque
+data:
+  # Base64 encoded MongoDB URI
+  #uri: bW9uZ29kYjovL3Jvb3Q6SWthNDNOYXRZNGtwN01DZ240QjlRUnVVMzh6TVQ5UERAbW9uZ29kYi1oZWFkbGVzczoyNzAxNy8/YXV0aFNvdXJjZT1hZG1pbiZhdXRoTWVjaGFuaXNtPVNDUkFNLVNIQS0yNTYmcmVwbGljYVNldD1yczA=
+  uri: bW9uZ29kYjovL3Jvb3Q6SWthNDNOYXRZNGtwN01DZ240QjlRUnVVMzh6TVQ5UERAbW9uZ29kYi1oZWFkbGVzczoyNzAxNy8/cmVwbGljYVNldD1yczAmcmVhZFByZWZlcmVuY2U9cHJpbWFyeSZjb25uZWN0VGltZW91dE1TPTEwMDAwJmF1dGhTb3VyY2U9YWRtaW4=
+---
+# Create a Secret for MinIO credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-credentials
+  namespace: develop
+type: Opaque
+stringData:
+  # Replace with your base64 encoded credentials
+  MINIO_ACCESS_KEY: iCMVqomZoPCNyiQZ
+  MINIO_SECRET_KEY: cO3GMORDkKuAkaN5z60HZMQ2ZoGe8oZz
+---
+# ConfigMap for backup script
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongo-backup-script
+  namespace: develop  
+data:
+  backup.sh: |
+    #!/bin/bash
+
+    
+    BACKUP_DIR="/tmp"
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    BACKUP_NAME="mongo_backup_${TIMESTAMP}.gz"
+    MAX_RETRIES=5
+    RETRY_DELAY=10
+    mc alias set myminio ${MINIO_URL} ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY}
+    echo  $MONGODB_URI
+
+    
+   
+    main() {
+        echo "Starting backup process..."
+        BACKUP_CMD="mongodump --uri=$MONGODB_URI
+        # Perform backup
+        echo "Creating backup..."
+        OPLOG_START=$(mongosh ${MONGODB_URI} --quiet --eval 'db.getSiblingDB("local").oplog.rs.find({}, {ts:1}).sort({$natural:-1}).limit(1).next().ts')
+        echo $OPLOG_START
+        echo $OPLOG_START > $BACKUP_DIR/oplog_position.txt
+
+        if $BACKUP_CMD \
+            --archive="$BACKUP_DIR/$BACKUP_NAME" \
+            --gzip \
+            --oplog; then
+            
+            echo "Backup created successfully: $BACKUP_NAME"
+            
+            # Upload to MinIO
+            echo "Uploading to MinIO..."
+            if mc cp "$BACKUP_DIR/$BACKUP_NAME" "myminio/${BUCKET_NAME}/full/"; then
+
+                mc cp "$BACKUP_DIR/oplog_position.txt" myminio/${BUCKET_NAME}/full/
+                echo "Upload successful"
+            else
+                echo "ERROR: Failed to upload backup to MinIO"
+                exit 1
+            fi
+        else
+            echo "ERROR: Backup creation failed"
+            exit 1
+        fi
+        
+        # Cleanup
+        rm -f "$BACKUP_DIR/$BACKUP_NAME"
+        echo "Backup process completed"
+    }
+
+    
+    main
+
+  restore.sh: |
+    #!/bin/bash
+    BACKUP_DIR="/tmp"
+    #POINT_IN_TIME=$1
+    if [ ! -z "$POINT_IN_TIME" ]; then
+      # Convert ISO timestamp to Unix timestamp (seconds since epoch)
+      UNIX_TIMESTAMP=$(date -d "$POINT_IN_TIME" +%s)
+      # MongoDB oplog format is "<seconds>:<increment>"
+      OPLOG_TIMESTAMP="${UNIX_TIMESTAMP}:0"
+      echo "Converting $POINT_IN_TIME to oplog timestamp: $OPLOG_TIMESTAMP"
+    fi
+    
+    echo "Starting restore process..."
+    
+    # Download latest backup from MinIO
+    mc alias set myminio ${MINIO_URL} ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY}
+    FULL_BACKUP=$(mc ls "myminio/${BUCKET_NAME}/full/" | sort -r | head -n1 | awk '{print $6}')
+    FULL_BACKUP_TIME=$(echo $FULL_BACKUP | grep -o "[0-9]\{8\}_[0-9]\{6\}")
+
+    echo "Restoring full backup: ${FULL_BACKUP}"
+    mc cp "myminio/${BUCKET_NAME}/full/${FULL_BACKUP}" "${BACKUP_DIR}/"
+    
+    
+    # Restore MongoDB
+     MONGODB_URI1="mongodb://root:Ika43NatY4kp7MCgn4B9QRuU38zMT9PD@mongodb-headless.iplus.svc.cluster.local:27017/?replicaSet=rs0&readPreference=primary&connectTimeoutMS=10000&authSource=admin"
+
+    echo  $MONGODB_URI1
+    echo "Restoring full backup starting"
+    #mongorestore --uri="${MONGODB_URI1}" --gzip --archive="${BACKUP_DIR}/${FULL_BACKUP}" --oplogReplay
+    echo "Restor fullbackup finished "
+
+    echo "Checking for oplog files until ${OPLOG_TIMESTAMP}..."
+    
+
+    
+       echo "Applying oplog entries until ${OPLOG_TIMESTAMP}..."
+
+       mc ls "myminio/${BUCKET_NAME}/oplog/" | grep "oplog_" | sort > "${BACKUP_DIR}/oplog_files.txt"
+
+    while IFS= read -r line; do
+        OPLOG_FILE=$(echo $line | awk '{print $6}')
+        OPLOG_TIME=$(echo $OPLOG_FILE | grep -o "[0-9]\{8\}_[0-9]\{6\}")
+        OPLOG_TIME_NUM=$(echo $OPLOG_TIME | tr -d '_')
+        FULL_BACKUP_TIME_NUM=$(echo $FULL_BACKUP_TIME | tr -d '_')       
+
+        if [ "$OPLOG_TIME_NUM" -gt "$FULL_BACKUP_TIME_NUM" ]; then
+            echo "Processing oplog file: ${OPLOG_FILE} (newer than full backup)"
+             mc cp "myminio/${BUCKET_NAME}/oplog/${OPLOG_FILE}" ./${OPLOG_FILE}
+
+             echo  ${BACKUP_DIR}/$OPLOG_FILE
+             ls -ltr *
+            # mongorestore \
+            #     --uri="${MONGODB_URI}" \
+            #     --gzip \
+            #     --oplogFile="${BACKUP_DIR}/${OPLOG_FILE}" \
+            #     --drop \
+            #     --bypassDocumentValidation \
+            #     --writeConcern="{w: 1}" \
+            #     --numParallelCollections=2
+
+        fi        
+            rm "${BACKUP_DIR}/${OPLOG_FILE}"    
+
+    done < "${BACKUP_DIR}/oplog_files.txt"
+    echo "Restore process completed"
+    rm -f "${BACKUP_DIR}/${FULL_BACKUP}"
+    rm -f "${BACKUP_DIR}/oplog_files.txt"
+    rm -f "${BACKUP_DIR}/full_backup_oplog_position.txt"
+
+
+      # for OPLOG in $(mc ls "myminio/${BUCKET_NAME}/oplog/" | grep "oplog_" | sort | awk '{print $6}'); do
+      #    echo "Processing oplog file: ${OPLOG}"
+      #    mc cp "myminio/${BUCKET_NAME}/oplog/${OPLOG}" "${BACKUP_DIR}/"
+      #    echo "Applying oplog: ${OPLOG} with limit ${OPLOG_TIMESTAMP}"
+
+        #  mongorestore  \
+        #   --uri="${MONGODB_URI1}"  \
+        #   --gzip \ 
+        #   --oplogFile="${BACKUP_DIR}/${OPLOG}" \
+        #   --drop \
+        #  # --nsInclude="local.oplog.rs" \
+        #  # --oplogReplay \
+        #   --bypassDocumentValidation \
+        #   --writeConcern="{w: 1}"  \
+        #   --numParallelCollections=2  \ 
+        #   #--maintainInsertionOrder \
+        #   # --noIndexRestore  \
+        #   --verbose
+    #   done
+    
+    # echo "Restore complete"
+
+    # # Clean up
+    # rm $BACKUP_DIR/*
+    
+  incremental-backup.sh: |
+    #!/bin/bash
+    
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    BACKUP_NAME="mongo_backup_${TIMESTAMP}"
+    BACKUP_DIR="/backup"
+    
+    # Set up MinIO client
+    mc alias set myminio ${MINIO_URL} ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY}
+    
+    # Get last oplog position
+    mc cp "myminio/${BUCKET_NAME}/oplog/oplog_position.txt" "/tmp/oplog_position.txt"
+    LAST_OPLOG_TS=$(cat /tmp/oplog_position.txt)
+    echo "Last oplog timestamp: $LAST_OPLOG_TS"
+
+
+    echo $MONGODB_URI
+    CURRENT_OPLOG=$(mongosh ${MONGODB_URI} --quiet --eval 'db.getSiblingDB("local").oplog.rs.find({}, {ts:1}).sort({$natural:-1}).limit(1).next().ts')
+    echo "Backing up oplog from $LAST_OPLOG_TS to $CURRENT_OPLOG"
+    # Extract the `t` and `i` values from the Timestamp object
+    T_VALUE=$(echo $LAST_OPLOG_TS | grep -oP '(?<=t: )\d+')
+    I_VALUE=$(echo $LAST_OPLOG_TS | grep -oP '(?<=i: )\d+')
+    LAST_OPLOG_TS_EXTENDED_JSON="{\"\$timestamp\": {\"t\": $T_VALUE, \"i\": $I_VALUE}}"
+
+    
+    echo "Extended JSON format: $LAST_OPLOG_TS_EXTENDED_JSON"
+   
+    mongodump --uri="${MONGODB_URI}" --gzip --archive="/tmp/oplog_${TIMESTAMP}.gz" --db=local --collection=oplog.rs  --query="{\"ts\": {\"\$gt\": $LAST_OPLOG_TS_EXTENDED_JSON}}" 
+   
+    # Upload new oplog backup and position
+    echo $CURRENT_OPLOG > /tmp/oplog_position.txt
+    mc cp "/tmp/oplog_${TIMESTAMP}.gz" "myminio/${BUCKET_NAME}/oplog/"
+    mc cp "/tmp/oplog_position.txt" "myminio/${BUCKET_NAME}/oplog/"
+    
+    echo "Incremental backup complete"
+
+---
+# CronJob for scheduled backups
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mongo-full-backup
+  namespace: develop
+spec:
+  schedule: "0 1 * * *"  # Run daily at 1 AM
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 1    
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backup
+            image: docker.hasti.co/mongodb/mongodb-tools:latest  #docker.hasti.co/mongodb/mongodb-community-server:latest
+            command: ["/scripts/backup.sh"]
+            env:
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: uri
+            - name: MINIO_URL
+              value: "http://minio.minio.svc.cluster.local:9000"
+            - name: BUCKET_NAME
+              value: "mongodb-develop-backups"
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: MINIO_ACCESS_KEY
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: MINIO_SECRET_KEY
+            volumeMounts:
+            - name: backup-script
+              mountPath: /scripts
+              readOnly: true
+          volumes:
+          - name: backup-script
+            configMap:
+              name: mongo-backup-script
+              defaultMode: 0755
+          restartPolicy: OnFailure
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mongo-incremental-backup
+  namespace: develop
+spec:
+  schedule: "0 1 * * *"  # Run daily at 1 AM
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backup
+            image: docker.hasti.co/mongodb/mongodb-tools:latest #docker.hasti.co/mongodb/mongodb-community-server:latest
+            command: ["/scripts/incremental-backup.sh"]
+            env:
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: uri
+            - name: MINIO_URL
+              value: "http://minio.minio.svc.cluster.local:9000"
+            - name: BUCKET_NAME
+              value: "mongodb-develop-backups"
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: MINIO_ACCESS_KEY
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: MINIO_SECRET_KEY
+            volumeMounts:
+            - name: backup-script
+              mountPath: /scripts
+              readOnly: true
+          volumes:
+          - name: backup-script
+            configMap:
+              name: mongo-backup-script
+              defaultMode: 0755
+          restartPolicy: OnFailure
+---
+# Job template for on-demand restore
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mongo-restore
+  namespace: develop
+spec:
+  template:
+    spec:
+      containers:
+      - name: restore
+        image: docker.hasti.co/mongodb/mongodb-tools:latest
+        command: ["/scripts/restore.sh"]
+        #args: ["2025-02-02T14:00:00Z"]
+        env:
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: uri
+        - name: MINIO_URL
+          value: "http://minio.minio.svc.cluster.local:9000"
+        - name: BUCKET_NAME
+          value: "mongodb-develop-backups"
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: minio-credentials
+              key: MINIO_ACCESS_KEY
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: minio-credentials
+              key: MINIO_SECRET_KEY
+        volumeMounts:
+        - name: backup-script
+          mountPath: /scripts
+          readOnly: true
+      volumes:
+      - name: backup-script
+        configMap:
+          name: mongo-backup-script
+          defaultMode: 0755
+      restartPolicy: Never

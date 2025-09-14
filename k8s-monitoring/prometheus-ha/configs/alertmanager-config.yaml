@@ -23,8 +23,8 @@ route:
   - match:
       type: "telegram-alerts"
     receiver: 'telegram'
-    group_wait: 5s
-    group_interval: 30s
+    group_wait: 20s
+    group_interval: 2ms
   - match:
       cluster: "production"
       namespace: "monitoring"
@@ -191,12 +191,14 @@ receivers:
         <b>Name:</b> {{ .Labels.alertname }}
         <b>Description:</b> {{ .Annotations.description }}
         <b>Summary:</b> {{ .Annotations.summary }}
+        {{ if .Annotations.grafana }}<a href="{{ .Annotations.grafana }}">🔍 Grafana Dashboard</a>{{ end }}
         {{ end }}
         {{- else if eq .Status "resolved" -}}
         {{ range .Alerts -}}
         <b>Status:</b> ✅
         <b>Severity:</b> {{ .Labels.severity }}
         <b>Description:</b> {{ .Annotations.resolved }}
+        {{ if .Annotations.grafana }}<a href="{{ .Annotations.grafana }}">🔍 Grafana Dashboard</a>{{ end }}
         {{ end }}
         {{ end }}
 

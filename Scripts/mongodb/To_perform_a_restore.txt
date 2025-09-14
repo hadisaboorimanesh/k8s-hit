@@ -1,0 +1,3 @@
+To perform a restore:
+
+kubectl create job --from=cronjob/mongo-restore mongo-restore-$(date +%s)

@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rabbitmq-ws
+  namespace: test
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: rabbitmq-ws-test.hasti.co
+    http:
+      paths:
+      - backend:
+          service:
+            name: rabbitmq
+            port:
+              name: webmqtt
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - rabbitmq-ws-test.hasti.co
+    secretName: hasti-tls

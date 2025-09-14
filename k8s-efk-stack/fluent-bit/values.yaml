@@ -493,7 +493,19 @@ config:
         Buffer_Chunk_Size 1MB
         Buffer_Max_Size   32MB
         Skip_Long_Lines   Off
-        Refresh_Interval  10       
+        Refresh_Interval  10
+
+    [INPUT]
+        Name              tail
+        Tag               kube.frontend
+        Path              /var/log/containers/frontend-admin-[^p]*_stage_frontend-admin*.log
+        Parser            cri
+        DB                /var/log/f91.db
+        Mem_Buf_Limit     256MB
+        Buffer_Chunk_Size 1MB
+        Buffer_Max_Size   32MB
+        Skip_Long_Lines   Off
+        Refresh_Interval  10
 
     [INPUT]
         Name              tail

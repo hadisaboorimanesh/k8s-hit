@@ -13,7 +13,7 @@ alertmanager:
 
 grafana:
   enabled: true
-  image: docker.hasti.co/grafana/grafana:9.5.2-ubuntu
+  image: docker-proxy.hasti.co/grafana/grafana:12.1.0
   service:
     type: ClusterIP
   resources:

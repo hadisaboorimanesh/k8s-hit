@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rabbitmq-ws
+  namespace: stage
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: rabbitmq-ws.tapsi.shop
+    http:
+      paths:
+      - backend:
+          service:
+            name: rabbit-rabbitmq
+            port:
+              name: webmqtt
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - rabbitmq-ws.tapsi.shop
+    secretName: tapsishop-tls

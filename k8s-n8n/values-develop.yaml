@@ -16,7 +16,7 @@ image:
   repository: docker-proxy.hasti.co/n8nio/n8n
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: "stable"
 imagePullSecrets: []
 
 # The Name to use for the chart. Will be the prefix of all resources aka. The Chart.Name (default is 'n8n')
@@ -80,19 +80,48 @@ main:
 
   # Extra environmental variables, so you can reference other configmaps and secrets into n8n as env vars.
   extraEnv: 
+    - name: N8N_LISTEN_ADDRESS
+      value: "0.0.0.0"
     - name: N8N_HOST
-      value: n8n-develop.hasti.co
+      value: "0.0.0.0"
+    - name: N8N_PORT
+      value: "5678"
     - name: WEBHOOK_URL
       value: "https://n8n-develop.hasti.co/"
     - name: N8N_TRUST_PROXY
       value: "true"
+    - name: N8N_TRUSTED_PROXIES
+      value: "0.0.0.0/0"
     - name: N8N_DISABLE_PRODUCTION_MAIN_PROCESS
       value: "false"
     - name: N8N_RUNNERS_ENABLED
-      value: "true"
+      value: "false"
     - name: N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS
       value: "true"
-  #
+    - name: N8N_LOG_LEVEL
+      value: "debug"
+    - name: NODE_ENV
+      value: "production"
+    - name: EXECUTIONS_DATA_PRUNE
+      value: "true"
+    - name: EXECUTIONS_DATA_MAX_AGE
+      value: "2"
+    - name: DB_SQLITE_VACUUM_ON_STARTUP
+      value: "true"
+    # ✅ Proxy settings
+    - name: http_proxy
+      value: http://arvan-gr.nullip.ir:443
+    - name: https_proxy
+      value: http://arvan-gr.nullip.ir:443
+    - name: HTTP_PROXY
+      value: http://arvan-gr.nullip.ir:443
+    - name: HTTPS_PROXY
+      value: http://arvan-gr.nullip.ir:443
+    - name: no_proxy
+      value: localhost,127.0.0.1,10.0.0.0/8,172.31.0.0/16,.giveapi.ir,.tapsi.shop,.hasti.co
+    - name: NO_PROXY
+      value: localhost,127.0.0.1,10.0.0.0/8,172.31.0.0/16,.giveapi.ir,.tapsi.shop,.hasti.co
+
   # N8n Kubernetes specific settings
   #
   persistence:
@@ -121,7 +150,7 @@ main:
     accessModes:
       - ReadWriteOnce
     # Persistent Volume size
-    size: 1Gi
+    size: 50Gi
     # Use an existing PVC
     # existingClaim:
 

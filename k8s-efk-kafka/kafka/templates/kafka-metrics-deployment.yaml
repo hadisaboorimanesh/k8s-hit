@@ -1,0 +1,61 @@
+{{- if .Values.metrics.kafka.enabled }}
+{{- $replicaCount := int .Values.replicaCount -}}
+{{- $releaseNamespace := .Release.Namespace -}}
+{{- $clusterDomain := .Values.clusterDomain -}}
+{{- $fullname := include "kafka.fullname" . -}}
+{{- $servicePort := int .Values.service.port -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "kafka.fullname" . }}-exporter
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: metrics
+    {{- if .Values.commonLabels }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.commonLabels "context" $ ) | nindent 4 }}
+    {{- end }}
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {{- include "common.labels.matchLabels" . | nindent 6 }}
+      app.kubernetes.io/component: metrics
+  template:
+    metadata:
+      labels: {{- include "common.labels.standard" . | nindent 8 }}
+        app.kubernetes.io/component: metrics
+    spec:
+{{- include "kafka.imagePullSecrets" . | indent 6 }}
+      containers:
+        - name: kafka-exporter
+          image: {{ include  "kafka.metrics.kafka.image" . }}
+          imagePullPolicy: {{ .Values.metrics.kafka.image.pullPolicy | quote }}
+          env:
+            - name: KAFKA_BROKERS
+              value: {{ $fullname }}-0.{{ $fullname }}-headless.{{ $releaseNamespace }}.svc.{{ $clusterDomain }}:{{ $servicePort }}
+          ports:
+            - name: metrics
+              containerPort: 8080
+          {{- if .Values.metrics.kafka.resources }}
+          resources: {{ toYaml .Values.metrics.kafka.resources | nindent 12 }}
+          {{- end }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: 
+                - all
+      {{- if and (include "kafka.tlsEncryption" .) .Values.metrics.kafka.certificatesSecret }}
+          volumeMounts:
+            - name: kafka-exporter-certificates
+              mountPath: /opt/bitnami/kafka-exporter/certs/
+              readOnly: true
+      volumes:
+        - name: kafka-exporter-certificates
+          secret:
+            secretName: {{ .Values.metrics.kafka.certificatesSecret }}
+            defaultMode: 0440
+      {{- end }}
+{{- end }}
