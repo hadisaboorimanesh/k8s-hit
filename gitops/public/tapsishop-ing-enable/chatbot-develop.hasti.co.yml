@@ -1,0 +1,29 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chatbot-ing-develop
+  namespace: develop
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-buffer-size: 128k
+    nginx.ingress.kubernetes.io/proxy-buffering: 'on'
+    nginx.ingress.kubernetes.io/proxy-buffers-number: '8'
+    nginx.ingress.kubernetes.io/enable-cors: "true" 
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: chatbot-develop.hasti.co
+    http:
+      paths:
+      - backend:
+          service:
+            name: chatbot-dashboard
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+
+  tls:
+  - hosts:
+    - chatbot-develop.hasti.co
+    secretName: hasti-tls  

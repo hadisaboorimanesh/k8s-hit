@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-gracefull
+  namespace: develop
+  labels:
+    image-tag: "20250119.3"
+    app.kubernetes.io/name: sample-gracefull
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sample-gracefull
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sample-gracefull
+        image-tag: "20250119.3"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: "app.kubernetes.io/name"
+                  operator: In
+                  values:
+                    - sample-gracefull
+              topologyKey: "kubernetes.io/hostname"
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: environment
+                operator: In
+                values:
+                - test
+      restartPolicy: Always
+      imagePullSecrets:
+        - name: hasti-docker-repo
+      containers:
+        - image: docker.hasti.co/hastim/sample_gracefull:20250119.3
+          name: sample-gracefull
+          command: ["dotnet", "GraceFullSample.dll"]
+          envFrom:
+            - configMapRef:
+                name: sample-gracefull
+          ports:
+            - containerPort: 80
+              name: api
+              protocol: TCP
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: "0.5Gi"
+              cpu: "0.1"
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /hc/live
+              port: api
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /hc/live
+              port: api
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5

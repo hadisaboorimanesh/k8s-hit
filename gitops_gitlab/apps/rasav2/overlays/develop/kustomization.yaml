@@ -1,0 +1,12 @@
+resources:
+- ../../base
+  #- hpa.yaml
+patchesStrategicMerge:
+- nodeAffinity.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: develop
+images:
+- name: example-image
+  newName: docker.hasti.co/alpha/rasav2
+  newTag: develop-20240717-314

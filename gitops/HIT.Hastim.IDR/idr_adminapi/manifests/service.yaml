@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: idr-adminapi
+  namespace: develop
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+      name: api
+    - port: 5000
+      name: grpc
+      targetPort: grpc      
+  selector:
+    app.kubernetes.io/name: idr-adminapi

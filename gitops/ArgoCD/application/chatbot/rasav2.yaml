@@ -1,0 +1,28 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rasav2-develop
+  namespace: argocd
+spec:
+  project: chatbot
+  source:
+    repoURL: https://git.hasti.co/alpha/gitops.git
+    targetRevision: main
+    path: apps/rasav2/overlays/develop
+  destination:
+    namespace: develop
+    server: 'https://rancher.hasti.co/k8s/clusters/c-m-qrrtx65z'
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    name: chatbot-rasa
+    namespace: develop
+    jsonPointers:
+    - /spec/replicas
+  - group: autoscaling
+    kind: HorizontalPodAutoscaler
+    name: chatbot-rasa
+    namespace: develop
+    jsonPointers:
+    - /spec/metrics  

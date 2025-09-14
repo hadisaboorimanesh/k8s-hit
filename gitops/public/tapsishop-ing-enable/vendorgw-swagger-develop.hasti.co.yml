@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vendorgw-swagger-develop
+  namespace: develop
+  annotations:
+    nginx.ingress.kubernetes.io/whitelist-source-range: "172.0.0.0/8"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, OPTIONS, DELETE, PUT"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://vendor-develop.hasti.co,http://localhost:4001,https://localhost:4001"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Accept,Authorization,Cache-Control,Content-Type,Range,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With,X-Mx-ReqToken,client-name,client-version"   
+    nginx.ingress.kubernetes.io/cors-max-age: '1728000'
+    nginx.ingress.kubernetes.io/cors-expose-headers: "Content-Length,Content-Range"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: vendorgw-develop.hasti.co
+    http:
+      paths:
+      - backend:
+          service:
+            name: vendorgw
+            port:
+              number: 80
+        path: /swagger
+        pathType: Prefix
+  tls:
+  - hosts:
+    - vendorgw-develop.hasti.co
+    secretName: hasti-tls
+

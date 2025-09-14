@@ -1,0 +1,28 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: frontend-$SERVICE_NAME-$BRANCHE_NAME
+  namespace: argocd
+spec:
+  destination:
+    namespace: $BRANCHE_NAME
+    server: 'https://rancher.hasti.co/k8s/clusters/c-m-qrrtx65z'
+  project: frontend
+  source:
+    path: $REPO_NAME/$SERVICE_NAME/manifests
+    repoURL: https://hig-devops.gig.services/HIT/Hastim/_git/gitops
+    targetRevision: $BRANCHE_NAME
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    name: frontend-$SERVICE_NAME
+    namespace: $BRANCHE_NAME
+    jsonPointers:
+    - /spec/replicas
+  - group: autoscaling
+    kind: HorizontalPodAutoscaler
+    name: frontend-$SERVICE_NAME
+    namespace: $BRANCHE_NAME
+    jsonPointers:
+    - /spec/metrics        

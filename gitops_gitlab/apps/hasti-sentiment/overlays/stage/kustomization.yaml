@@ -1,0 +1,12 @@
+resources:
+- ../../base
+- hpa.yaml
+  #patchesStrategicMerge:
+  #- replica-count.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: stage
+images:
+- name: example-image
+  newName: docker.hasti.co/alpha/hasti-sentiment
+  newTag: 20240316-133-stage

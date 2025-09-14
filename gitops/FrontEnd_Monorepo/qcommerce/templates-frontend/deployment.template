@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-$SERVICE_NAME
+  namespace: $BRANCHE_NAME
+  labels:
+    app.kubernetes.io/name: frontend-$SERVICE_NAME-$BRANCHE_NAME
+    image-tag: "$IMAGE_TAG"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend-$SERVICE_NAME-$BRANCHE_NAME
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: frontend-$SERVICE_NAME-$BRANCHE_NAME
+        image-tag: "$IMAGE_TAG"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: "app.kubernetes.io/name"
+                  operator: In
+                  values:
+                    - frontend-$SERVICE_NAME-$BRANCHE_NAME
+              topologyKey: "kubernetes.io/hostname"
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: environment
+                operator: In
+                values:
+                - test
+      restartPolicy: Always
+      imagePullSecrets:
+        - name: hasti-docker-repo
+      containers:
+        - image: $IMAGE_NAME
+          name: frontend-$SERVICE_NAME
+          env:
+            - name: COREPACK_DEFAULT_TO_LATEST
+              value: "0"
+            - name: COREPACK_NPM_REGISTRY
+              value: "https://nexus.hasti.co/repository/npm-proxy"
+            - name: COREPACK_NPM_USERNAME
+              value: ""
+            - name: COREPACK_NPM_PASSWORD
+              value: "Y2ljZDpraDkzTnhWcUtQZmVWRTZK"
+          ports:
+            - containerPort: $TARGET_PORT
+              name: api
+              protocol: TCP
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: "0.5Gi"
+              cpu: "0.5"
+            limits:
+              memory: "3Gi"
+              cpu: "2"

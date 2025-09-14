@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: $SERVICE_NAME
+  namespace: $BRANCHE_NAME
+data:
+  Consul__Keys: "$CONSUL_KEYS"
+  Consul__Server: "$CONSUL_SERVER"
+  Consul__Token: "$CONSUL_TOKEN"
+  ASPNETCORE_HTTP_PORTS: "80"
+  DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: "false"
+  ASPNETCORE_ENVIRONMENT: "$BRANCHE_NAME"
+  kubernetes: "true"

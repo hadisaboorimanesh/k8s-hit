@@ -1,0 +1,64 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chatbot-rasa
+  namespace: main
+  labels:
+    app.kubernetes.io/name: chatbot-rasa
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: chatbot-rasa
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: chatbot-rasa
+    spec:
+      imagePullSecrets:
+        - name: hasti-docker-repo
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: "app.kubernetes.io/name"
+                  operator: In
+                  values:
+                    - chatbot-rasa
+              topologyKey: "kubernetes.io/hostname" 
+      volumes:
+        - emptyDir: {}
+          name: log
+      containers:
+        - image: example-image #docker.hasti.co/alpha/rasav2:test
+          imagePullPolicy: IfNotPresent
+          name: rasa
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "0.5"
+            limits:
+              memory: "8Gi"
+              cpu: "1"
+          volumeMounts:
+            - mountPath: /app/logs/
+              name: log
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            runAsUser: 10001
+            capabilities:
+              drop: 
+                - all                              
+      restartPolicy: Always
+

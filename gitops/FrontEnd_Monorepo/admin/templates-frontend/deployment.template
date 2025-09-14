@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-$SERVICE_NAME
+  namespace: $BRANCHE_NAME
+  labels:
+    app.kubernetes.io/name: frontend-$SERVICE_NAME
+    image-tag: "$IMAGE_TAG"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend-$SERVICE_NAME
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: frontend-$SERVICE_NAME
+        image-tag: "$IMAGE_TAG"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - frontend-$SERVICE_NAME
+              topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: environment
+                operator: In
+                values:
+                - test
+      restartPolicy: Always
+      imagePullSecrets:
+        - name: hasti-docker-repo
+      containers:
+        - image: $IMAGE_NAME
+          name: frontend-$SERVICE_NAME
+          ports:
+            - containerPort: $TARGET_PORT
+              name: api
+              protocol: TCP
+          command: ["node", "/app/node_modules/nx/bin/nx.js", "serve", "admin", "--configuration=production", "--hostname", "0.0.0.0", "--port", "4000", "--verbose"]
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: "0.5Gi"
+              cpu: "0.5"
+            limits:
+              memory: "3Gi"
+              cpu: "2"
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /api/health/status/
+              port: api
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /api/health/status/
+              port: api
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5

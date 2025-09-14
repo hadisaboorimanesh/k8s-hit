@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: identityservice-token-develop
+  namespace: develop
+  annotations:
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, OPTIONS, DELETE, PUT"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Accept,Authorization,Cache-Control,Content-Type,Range,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With,X-Mx-ReqToken,client-name,client-version"   
+    nginx.ingress.kubernetes.io/cors-max-age: '1728000'
+    nginx.ingress.kubernetes.io/cors-expose-headers: "Content-Length,Content-Range"
+    nginx.ingress.kubernetes.io/server-snippet: |
+       limit_req zone=auth_limit_dartil;
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: ids-develop.hasti.co
+    http:
+      paths:
+      - backend:
+          service:
+            name: identityservice
+            port:
+              number: 80
+        path: /connect/token
+        pathType: Prefix
+  tls:
+  - hosts:
+    - ids-develop.hasti.co
+    secretName: hasti-tls
+

@@ -1,0 +1,15 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tapsishop-ing-disable-develop
+  namespace: argocd
+spec:
+  destination:
+    namespace: develop
+    server: 'https://rancher.hasti.co/k8s/clusters/c-m-qrrtx65z'
+  project: default
+  source:
+    path: public/tapsishop-ing-disable
+    repoURL: https://hig-devops.gig.services/HIT/Hastim/_git/gitops
+    targetRevision: develop

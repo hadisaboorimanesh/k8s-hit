@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sale-adminapi
+  namespace: develop
+  labels:
+    image-tag: "20250913.18"
+    app.kubernetes.io/name: sale-adminapi
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sale-adminapi
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sale-adminapi
+        image-tag: "20250913.18"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: "app.kubernetes.io/name"
+                  operator: In
+                  values:
+                    - sale-adminapi
+              topologyKey: "kubernetes.io/hostname"
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: environment
+                operator: In
+                values:
+                - test
+      restartPolicy: Always
+      imagePullSecrets:
+        - name: hasti-docker-repo
+      containers:
+        - image: docker.hasti.co/hastim/sale_adminapi:20250913.18
+          name: sale-adminapi
+          command: ["dotnet", "HIT.Hastim.Sale.Endpoints.AdminApi.dll"]
+          envFrom:
+            - configMapRef:
+                name: sale-adminapi
+          ports:
+            - containerPort: 80
+              name: api
+              protocol: TCP
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: "0.5Gi"
+              cpu: "0.1"
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /hc/live
+              port: api
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /hc/live
+              port: api
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5

@@ -1,0 +1,26 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: application-argocd-develop
+  namespace: argocd
+spec:
+  destination:
+    namespace: develop
+    server: 'https://kubernetes.default.svc'
+  project: default
+  sources:
+    - repoURL: https://hig-devops.gig.services/HIT/Hastim/_git/gitops
+      path: ArgoCD/application
+      targetRevision: develop
+    - repoURL: https://hig-devops.gig.services/HIT/Hastim/_git/gitops
+      path: ArgoCD/application/backend
+      targetRevision: develop
+    - repoURL: https://hig-devops.gig.services/HIT/Hastim/_git/gitops
+      path: ArgoCD/application/chatbot
+      targetRevision: develop
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Application
+      name: dartil-ing-disable-develop
+      namespace: argocd

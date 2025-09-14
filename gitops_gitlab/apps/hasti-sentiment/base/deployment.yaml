@@ -1,0 +1,83 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chatbot-hasti-sentiment
+  namespace: main
+  labels:
+    app.kubernetes.io/name: chatbot-hasti-sentiment
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: chatbot-hasti-sentiment
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: chatbot-hasti-sentiment
+    spec:
+      imagePullSecrets:
+        - name: hasti-docker-repo
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: "app.kubernetes.io/name"
+                  operator: In
+                  values:
+                    - chatbot-hasti-sentiment
+              topologyKey: "kubernetes.io/hostname" 
+      volumes:
+        - emptyDir: {}
+          name: tmp
+        - emptyDir: {}
+          name: var-tmp   
+        - emptyDir: {}
+          name: usr-tmp
+        - emptyDir: {}
+          name: home-tmp          
+      containers:
+        - image: example-image #docker.hasti.co/alpha/hasti-sentiment:test
+          imagePullPolicy: Always
+          name: hasti-sentiment
+          env:
+            - name: PORT
+              value: "80"
+            - name: MULTI_MODEL_PATH
+              value: /app/multi
+            - name: BINARY_MODEL_PATH
+              value: /app/binary
+          resources:
+            requests:
+              memory: "0.5Gi"
+              cpu: "1"
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            runAsUser: 10001
+            capabilities:
+              drop: 
+                - all   
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmp
+            - mountPath: /var/tmp/
+              name: var-tmp
+            - mountPath: /usr/tmp/
+              name: usr-tmp  
+            - mountPath: /home/user1/
+              name: home-tmp                              
+      restartPolicy: Always

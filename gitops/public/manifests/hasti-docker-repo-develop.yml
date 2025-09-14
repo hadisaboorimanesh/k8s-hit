@@ -1,0 +1,8 @@
+apiVersion: v1
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyJkb2NrZXIuaGFzdGkuY28iOnsidXNlcm5hbWUiOiJhenVyZSIsInBhc3N3b3JkIjoiRnIweHBsdXMifX19
+kind: Secret
+metadata:
+  name: hasti-docker-repo
+  namespace: develop
+type: kubernetes.io/dockerconfigjson

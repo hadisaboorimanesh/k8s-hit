@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: $SERVICE_NAME
+  namespace: $BRANCHE_NAME
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "80"
+    prometheus.io/path: "/metrics"    
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+      name: api
+    - port: 5000
+      name: grpc
+      targetPort: grpc          
+  selector:
+    app.kubernetes.io/name: $SERVICE_NAME

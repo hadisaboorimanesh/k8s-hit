@@ -1,0 +1,28 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sale-externalapi-develop
+  namespace: argocd
+spec:
+  destination:
+    namespace: develop
+    server: 'https://rancher.hasti.co/k8s/clusters/c-m-qrrtx65z'
+  project: backend
+  source:
+    path: HIT.Hastim.Sale/sale_externalapi/manifests
+    repoURL: https://hig-devops.gig.services/HIT/Hastim/_git/gitops
+    targetRevision: develop
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    name: sale-externalapi
+    namespace: develop
+    jsonPointers:
+    - /spec/replicas
+  - group: autoscaling
+    kind: HorizontalPodAutoscaler
+    name: sale-externalapi
+    namespace: develop
+    jsonPointers:
+    - /spec/metrics    

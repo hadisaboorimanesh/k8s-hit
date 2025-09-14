@@ -1,0 +1,29 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chatbotgw-ing-develop
+  namespace: develop
+  annotations:
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://chatbot-develop.hasti.co,https://commerce-develop.hasti.co,https://qpwa-develop.hasti.co,https://cdn-develop.hasti.co"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, OPTIONS, DELETE, PUT"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, Origin"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: chatbotgw-develop.hasti.co
+    http:
+      paths:
+      - backend:
+          service:
+            name: chatbot-gateway
+            port:
+              number: 8080
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - chatbotgw-develop.hasti.co
+    secretName: hasti-tls      

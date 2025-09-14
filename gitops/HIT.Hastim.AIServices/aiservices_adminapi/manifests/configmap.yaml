@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aiservices-adminapi
+  namespace: develop
+data:
+  Consul__Keys: "develop/aiservices/admin,develop/shared"
+  Consul__Server: "http://consul-consul-server.consul.svc.cluster.local:8500"
+  Consul__Token: "8a1e070f-9afe-caf2-9025-1b56a5d57ab4"
+  ASPNETCORE_HTTP_PORTS: "80"
+  DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: "false"
+  ASPNETCORE_ENVIRONMENT: "develop"
+  kubernetes: "true"
