@@ -1,0 +1,27 @@
+.docker-deploy_to_gitops_old:
+    stage: deploy
+    before_script:
+      - |
+        set -xe
+        git  clone https://hit_bot:glpat-HzscCrNcLX-s-J2xoSVf@git.hasti.co/alpha/gitops.git
+    script: 
+      - |
+        set -xe
+        env          
+          sed -i "s/@build_number/${CI_JOB_ID}/g" templates/manifests/deployment.yaml
+          cat  templates/manifests/deployment.yaml
+
+          cd gitops
+          git config --global user.name "moradi.saeed"
+          git config --global user.email "moradi.saeed@hasti.co"
+          git checkout -f ${CI_COMMIT_REF_NAME}
+          git pull
+          cp -R ../templates/manifests/*  ${CI_PROJECT_NAME}/manifests
+          git  status 
+          git add .
+          git commit -m "bump version" -n
+          git pull || true && git push || true
+
+    tags:
+      - ${CI_COMMIT_REF_NAME}
+

@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: torchserve-deployment
+  labels:
+    app: torchserve
+spec:
+  replicas: 1 
+  selector:
+    matchLabels:
+      app: torchserve
+  template:
+    metadata:
+      labels:
+        app: torchserve
+    spec:
+      containers:
+      - name: torchserve
+        image: docker.hasti.co/iplus1/services/iplus-torchserve-cpu:1.0
+        args: ["torchserve","--model-store=\"/home/model-server/model_store\""]  
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2
+            memory: 4Gi
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: model-store
+          mountPath: /home/model-server/model_store
+      volumes:
+      - name: model-store
+        emptyDir: {}          
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: torchserve-service
+spec:
+  selector:
+    app: torchserve
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080

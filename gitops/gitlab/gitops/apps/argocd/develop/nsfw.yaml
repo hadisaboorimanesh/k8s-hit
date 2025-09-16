@@ -1,0 +1,31 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nsfw-develop
+  namespace: argocd
+spec:
+  project: chatbot
+  source:
+    repoURL: https://git.hasti.co/alpha/gitops.git
+    targetRevision: main
+    path: apps/nsfw/overlays/develop
+  destination:
+    name: in-cluster
+    namespace: develop
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: true
+    syncOptions: 
+      - Validate=false 
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

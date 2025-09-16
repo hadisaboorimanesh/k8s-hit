@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vectorizer
+  namespace: argocd
+spec:
+  project: iplus
+  source:
+    repoURL: https://git.hasti.co/alpha/gitops.git
+    targetRevision: main
+    path: apps/vectorizer/overlays/dev
+  destination:
+    namespace: iplus
+    server: 'https://rancher.hasti.co/k8s/clusters/c-m-qrrtx65z'   
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    name: vectorizer
+    namespace: iplus
+    jsonPointers:
+    - /spec/replicas

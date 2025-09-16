@@ -1,0 +1,11 @@
+report-success:
+    #image: docker.hasti.co/library/curl:latest
+    stage: report
+    script: |  
+       set -xe
+
+        curl -i -X POST -H 'Content-Type: application/json' \
+            -d "{\"channel_id\":\"i3bh5uj1xfyhtfunaiaocc311r\", \"message\":\":large_green_circle: Pipeline ** ${CI_PROJECT_NAME} ** on branch ** ${CI_COMMIT_REF_NAME} ** has been successful! \"}" \
+            -H 'Authorization: Bearer zocdyfq7xtfzzn5f78snbgxhir' https://chat.tapsi.shop/api/v4/posts
+     
+    when: on_success

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-configmap-demo
+  namespace: iplus
+data:
+  NODE_ENV: stage
+  REACT_APP_BASE_URL: "https://apisearch.hasti.co"  

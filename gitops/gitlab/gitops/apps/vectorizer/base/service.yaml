@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vectorizer
+  namespace: iplus
+spec:
+  selector:
+    app.kubernetes.io/name: vectorizer
+  ports:
+  - name: http
+    protocol: TCP
+    port: 50051
+    targetPort: 50051

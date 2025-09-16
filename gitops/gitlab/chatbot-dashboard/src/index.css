@@ -1,0 +1,83 @@
+@import "chatbotsdk/css/chatbot.css";
+
+@font-face {
+    font-family: IranYekan;
+    src: url('./assets/fonts/webfonts/IRANYekanX-Thin.woff2') format('woff2');
+    font-weight: 100;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: IranYekan;
+    src: url('./assets/fonts/webfonts/IRANYekanX-UltraLight.woff2') format('woff2');
+    font-weight: 200;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: IranYekan;
+    src: url('./assets/fonts/webfonts/IRANYekanX-Light.woff2') format('woff2');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: IranYekan;
+    src: url('./assets/fonts/webfonts/IRANYekanX-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: IranYekan;
+    src: url('./assets/fonts/webfonts/IRANYekanX-Medium.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: IranYekan;
+    src: url('./assets/fonts/webfonts/IRANYekanX-DemiBold.woff2') format('woff2');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: IranYekan;
+    src: url('./assets/fonts/webfonts/IRANYekanX-Bold.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: IranYekan;
+    src: url('./assets/fonts/webfonts/IRANYekanX-ExtraBold.woff2') format('woff2');
+    font-weight: 800;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: IranYekan;
+    src: url('./assets/fonts/webfonts/IRANYekanX-Black.woff2') format('woff2');
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.cb-container {
+    z-index: 100;
+    margin-right: 250px;
+}
+

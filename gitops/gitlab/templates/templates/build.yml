@@ -1,0 +1,39 @@
+docker-build:
+   stage: build
+   #services:
+      #- docker.hasti.co/docker/docker-mc:dind
+   before_script:
+      - docker login -u "$CI_DOCKER_REGISTRY_USER" -p "$CI_DOCKER_REGISTRY_PASSWORD" $CI_DOCKER_REGISTRY
+      #- docker pull "$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:${CI_COMMIT_REF_NAME}" || true
+   script: |  
+       set -xe
+       env
+
+    
+       VITE_API_BASE_URL_tmp=`echo VITE_API_BASE_URL_${CI_COMMIT_REF_NAME}  | tr '[:lower:]'`
+       eval VITE_API_BASE_URL=\$$VITE_API_BASE_URL_tmp
+       echo  $VITE_API_BASE_URL
+
+
+       if  [ $CI_PROJECT_NAME == "hasti-sentiment" ]
+       then
+         mc config host add myminio ${AWS_HOST} ${AWS_ACCESS_KEY} ${AWS_SECRET_KEY}
+         mc cp -r myminio/models/sentiment/multi .
+         mc cp -r myminio/models/sentiment/binary .
+       elif  [ $CI_PROJECT_NAME == "nsfw" ]
+       then
+         mc config host add myminio ${AWS_HOST} ${AWS_ACCESS_KEY} ${AWS_SECRET_KEY}
+         mc cp myminio/models/nsfw/roberta-clasification.pt ./parsdetoxer/
+       fi
+
+         
+       export IMAGE_TAG="${CI_COMMIT_REF_NAME}-$(date +%Y%m%d)-${CI_PIPELINE_IID}"
+       docker build --cache-from "$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:${CI_COMMIT_REF_NAME}" -t "$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:${CI_COMMIT_REF_NAME}" --build-arg VITE_API_BASE_URL=$VITE_API_BASE_URL   .
+       #docker build  -t "$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:${CI_COMMIT_REF_NAME}" --build-arg VITE_API_BASE_URL=$VITE_API_BASE_URL   .
+       docker tag  "$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:${CI_COMMIT_REF_NAME}" "$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:$IMAGE_TAG"
+       #docker tag  "$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:${CI_COMMIT_REF_NAME}" "$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:$CI_COMMIT_SHORT_SHA"
+       docker push "$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:${CI_COMMIT_REF_NAME}"
+       docker push "$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:$IMAGE_TAG"
+       #docker push "$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:$CI_COMMIT_SHORT_SHA"
+   tags:
+       - ${CI_COMMIT_REF_NAME}

@@ -1,0 +1,38 @@
+.docker-deploy:
+   stage: deploy
+   rules:
+       - if: '$CI_COMMIT_REF_NAME == "develop"  || $CI_COMMIT_REF_NAME == "test"'
+   before_script: |
+       set -xe
+       ssh_server=`echo ${CI_COMMIT_REF_NAME}_ssh_host | tr '[:lower:]' '[:upper:]'`
+       eval SSH_ADDR=\$$ssh_server
+       echo  $SSH_ADDR
+       ssh_key=`echo ${CI_COMMIT_REF_NAME}_SSH_PRIVATE_KEY | tr '[:lower:]' '[:upper:]'`
+       eval SSH_PRIVATE_KEY=\$$ssh_key
+       chmod 600 $SSH_PRIVATE_KEY
+   script: |
+       set -xe
+       env 
+
+       if  [ $CI_COMMIT_REF_NAME != "test"  || $CI_COMMIT_REF_NAME != "develop" ]
+       then
+
+
+       ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no  -i $SSH_PRIVATE_KEY  $SSH_USER@$SSH_ADDR "
+       mkdir -p /chatbot-compose/$CI_PROJECT_NAME"
+
+       scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no  -i $SSH_PRIVATE_KEY  docker-compose.yml   $SSH_USER@$SSH_ADDR:/chatbot-compose/$CI_PROJECT_NAME
+       
+       if  [ $CI_PROJECT_NAME == "chatbot-gateway" ]
+       then
+            echo "hello"
+            scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no  -i $SSH_PRIVATE_KEY  .env.example my.cnf  docker-compose.yml $SSH_USER@$SSH_ADDR:/chatbot-compose/$CI_PROJECT_NAME
+       
+       fi
+       ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no  -i $SSH_PRIVATE_KEY  $SSH_USER@$SSH_ADDR "
+       cd /chatbot-compose/$CI_PROJECT_NAME &&
+       docker-compose pull && 
+       docker-compose up -d"
+       fi
+   tags:
+      - ${CI_COMMIT_REF_NAME}

@@ -1,0 +1,10 @@
+stages:
+    - build
+    - report
+    - deploy
+
+image: 
+  name: docker.hasti.co/docker/docker-mc-git:latest
+  pull_policy: if-not-present
+
+include: 'templates/*.yml'

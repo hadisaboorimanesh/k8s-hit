@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gw-configmap
+  namespace: main
+data:
+    APP_NAME: chatbot
+    APP_URL: https://chatbotgw-develop.hasti.co
+    GIN_MODE: release
+    HOST: "0.0.0.0"
+    PORT: "8080"
+    KEY: "0fad93f5e804f16a264b76b1a67c0317"
+    ACCESS_TOKEN_DURATION: "15m"
+    REFRESH_TOKEN_DURATION: "72h"
+    DB_DRIVER: mysql
+    DB_NAME: chatbot
+    DB_USERNAME: chatbot
+    DB_PASSWORD: OkSx2qkjKl8
+    DB_HOST: mysql
+    DB_PORT: "3306"
+    RASA_ENDPOINT: http://chatbot-rasa-svc:5005/webhooks/rest/webhook
+    ACTION_SERVER_ENDPOINT: http://commercegw/Web/sale/ChatBot2
+    ALLOWED_ORIGINS: https://chatbot-develop.hasti.co,https://commerce-develop.hasti.co,http://localhost:4002,https://pwa-develop.hasti.co
+    TRIGGER_ENDPOINT: https://git.hasti.co/api/v4/projects/608/trigger/pipeline
+    TRIGGER_PRIVATE_TOKEN: "glpat-xgksrq67UrQy7X2LsE8k"
+    TRIGGER_TOKEN: "glptt-e1596f1c00c9bb28aa9abff81df6810203b4392b"
+    TRIGGER_REF: develop
+

@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-search-demo
+  namespace: iplus
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: apisearch-demo.hasti.co
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api-search-demo
+            port:
+              number: 3000
+  tls:
+  - hosts:
+    - apisearch-demo.hasti.co
+    secretName: hasti-tls                

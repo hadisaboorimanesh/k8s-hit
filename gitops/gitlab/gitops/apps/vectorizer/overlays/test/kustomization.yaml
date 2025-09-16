@@ -1,0 +1,11 @@
+apiversion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resource:
+ - ../../base/
+ - ingress.yaml
+ - configmap.yaml
+namespace: test
+images:
+- name: example-image
+  newName: docker.hasti.co/iplus/api
+  newTag: test-20240505-177

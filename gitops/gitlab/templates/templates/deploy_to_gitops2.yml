@@ -1,0 +1,37 @@
+docker-deploy_to_gitops:
+    stage: deploy
+    image: docker.hasti.co/library/kustomize:latest
+    before_script:
+      - |
+        set -xe
+        git  clone https://hit_bot:glpat-4xkCr4Yo4g3pHXwTFhh1@git.hasti.co/alpha/gitops.git
+    script: 
+      - |
+        set -xe
+        env
+           export IMAGE_TAG="${CI_COMMIT_REF_NAME}-$(date +%Y%m%d)-${CI_PIPELINE_IID}"
+           cd gitops/apps/$CI_PROJECT_NAME/overlays/${CI_COMMIT_REF_NAME}
+           kustomize edit set image example-image="$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:$IMAGE_TAG"
+          
+          git config --global user.name "moradi.saeed"
+          git config --global user.email "moradi.saeed@hasti.co"
+          git pull
+          git  status 
+          git add .
+          git commit -m "bump $CI_PROJECT_NAME on ${CI_COMMIT_REF_NAME} " -n
+          git pull || true && git push || true
+
+           #if  [ "$CI_COMMIT_REF_NAME" == "test" ] || [ "$CI_COMMIT_REF_NAME" == "develop" ]
+           #then
+          TOKEN=`curl https://argocd.hasti.co/api/v1/session \
+              -d $'{"username":"admin","password":"Fr0xplus"}'  | awk -F'"' '{print $4}'`
+          sleep 3     
+          curl -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" \
+            "https://argocd.hasti.co/api/v1/applications/${CI_PROJECT_NAME,,}-${CI_COMMIT_REF_NAME}/sync"
+
+          #fi
+
+    tags:
+      - ${CI_COMMIT_REF_NAME}
+
+

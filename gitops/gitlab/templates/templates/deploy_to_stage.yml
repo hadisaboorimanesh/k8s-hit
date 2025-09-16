@@ -1,0 +1,49 @@
+.docker-deploy_to_stage:
+    stage: deploy
+    rules:
+      - if: '$CI_COMMIT_REF_NAME == "stage"'
+    before_script:
+      - |
+        ssh_server=`echo ${CI_COMMIT_REF_NAME}_ssh_host | tr '[:lower:]' '[:upper:]'`
+        eval SSH_ADDR=\$$ssh_server
+        echo  $SSH_ADDR
+        ssh_key=`echo ${CI_COMMIT_REF_NAME}_SSH_PRIVATE_KEY | tr '[:lower:]' '[:upper:]'`
+        eval SSH_PRIVATE_KEY=\$$ssh_key
+        cat  $SSH_PRIVATE_KEY
+        chmod 600 $SSH_PRIVATE_KEY
+    script: 
+      - |
+        set -xe
+        env
+
+          if  [ $CI_PROJECT_NAME == "chatbot-gateway" ]
+          then
+             ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i $SSH_PRIVATE_KEY $SSH_USER@$SSH_ADDR "
+             docker service update --image '$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:stage'  --with-registry-auth stage_chatbot-gw "
+          elif  [ $CI_PROJECT_NAME == "chatbot-dashboard" ]
+          then
+             ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no  -i $SSH_PRIVATE_KEY  $SSH_USER@$SSH_ADDR "
+             docker service update --image '$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:stage' --with-registry-auth  stage_chatbot-dashboard "    
+
+          elif  [ $CI_PROJECT_NAME == "hasti-nsfw" ]
+          then
+             ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no  -i $SSH_PRIVATE_KEY  $SSH_USER@$SSH_ADDR "
+             docker service update --image '$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:stage' stage_chatbot-hasti-nsfw "
+
+          elif  [ $CI_PROJECT_NAME == "hasti-sentiment" ]
+          then
+              ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no  -i $SSH_PRIVATE_KEY  $SSH_USER@$SSH_ADDR "
+              docker service update --image '$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:stage'  stage_chatbot-hasti-sentiment "
+
+          elif  [ $CI_PROJECT_NAME == "nsfw" ]
+          then
+              ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no  -i $SSH_PRIVATE_KEY  $SSH_USER@$SSH_ADDR "
+              docker service update --image '$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:stage' stage_chatbot-nsfw "
+          elif  [ $CI_PROJECT_NAME == "rasav2" ]
+          then
+              ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no  -i $SSH_PRIVATE_KEY  $SSH_USER@$SSH_ADDR "
+              docker service update --image '$CI_DOCKER_REGISTRY/$CI_PROJECT_PATH:stage' stage_chatbot-rasa "         
+           fi
+      
+    tags:
+      - ${CI_COMMIT_REF_NAME}

@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-configmap
+  namespace: iplus
+data:
+  KAFKA_HOST: "kafka.iplus.svc.cluster.local"
+  KAFKA_PORT: "9092"
+  # vectorizer
+  RPC_HOST: "torchserve-service.iplus.svc.cluster.local"
+  RPC_PORT: "8080"
+  ELASTIC_HOSTS: "https://elastic.iplussrv.com"
+  ELASTIC_PASSWORD: "MDAiXSwiZmdyIjoiZjQzNzZjZDJlO"
+  AUTOCOMPLETE_CACHE_TTL: "300"
+  CAHCE: "false"
+  CATEGORY_PREDICTION: "false"
+  ELASTIC_CONFIG_LSRANKING_ALPHA: ".5"
+  ELASTIC_CONFIG_LSRANKING_BETHA: "2.4"
+  ELASTIC_CONFIG_LSRANKING_GAMMA: "41"
+  ELASTIC_CONFIG_LSRANKING_SEMANTIC_MIN_SCORE: "200"
+  ELASTIC_CONFIG_NORMALIZE_METHOD: "rescale_0_100"
+  ELASTIC_CONFIG_NORMALIZE_THRESHOLD: "9"
+  ELASTIC_CONFIG_SAMPLER_SIZE: "1000"
+  ELASTIC_INDICE_PRODUCTS: "products"
+  ELASTIC_INDICE_PRODUCTS_AUTOCOMPLETE: "products.autocomplete"
+  ELASTIC_INDICE_SELLERS_AUTOCOMPLETE: "sellers.autocomplete"
+  ENVIRONMENT: "stage"
+  LEXICAL_SEARCH: "true"
+  SEARCH_CACHE_TTL: "300"
+  SEMANTIC_SEARCH: "false"
+  HTTP_REDIS_CACHE_URL: "redis://:wsVLtVwRTaTfvfE4LHygqtapH838Fykx@redis-master:6379"
