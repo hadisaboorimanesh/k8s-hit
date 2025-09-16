@@ -1,0 +1,26 @@
+version: "3.7"
+name: rancher-ssl
+
+services:
+  rancher:
+    image: docker.hasti.co/rancher/rancher:latest
+    ports:
+      - 80:80
+      - 443:443
+    command: "--no-cacerts"
+
+    volumes:
+    - "/rancher-data/rancher:/var/lib/rancher"
+    - "/rancher-data/kubelet:/var/lib/kubelet"
+    - "/rancher-data/cni:/var/lib/cni"
+    - "/rancher-data/log:/var/log"
+    - "/rancher-data/rancher-data:/var/lib/rancher-data"
+    - ./ssl/cert.pem:/etc/rancher/ssl/cert.pem
+    - ./ssl/key.pem:/etc/rancher/ssl/key.pem
+    - /etc/localtime:/etc/localtime:ro
+    - /etc/timezone:/etc/timezone:ro   
+    restart: unless-stopped
+    environment:
+      - continuous-delivery = "false"
+      - istio-virtual-service-ui = "false"
+    privileged: true
