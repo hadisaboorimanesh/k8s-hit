@@ -4,7 +4,7 @@ docker-deploy_to_gitops:
     before_script:
       - |
         set -xe
-        git  clone https://hit_bot:glpat-4xkCr4Yo4g3pHXwTFhh1@git.hasti.co/alpha/gitops.git
+        git  clone https://hit_bot:h1@git.hasti.co/alpha/gitops.git
     script: 
       - |
         set -xe
