@@ -1,0 +1,47 @@
+FROM docker.hasti.co/alpha/rasa-assest:test As Build 
+
+EXPOSE 5005
+WORKDIR /app
+USER root
+
+#ADD https://github.com/AkihiroSuda/clone3-workaround/releases/download/v1.0.0/clone3-workaround.x86_64  /clone3-workaround
+RUN chmod 755 /clone3-workaround
+SHELL ["/clone3-workaround", "/bin/sh", "-c"]
+
+#ENV http_proxy=http://172.31.58.242:1081
+#ENV https_proxy=http://172.31.58.242:1081
+
+COPY requirements.txt requirements.txt
+RUN pip config --user set global.index-url https://nx-fr.nullip.ir/repository/pypi/simple && \
+    pip config --user set global.no-cache-dir false && \
+    pip install -U pip && \
+    pip install -r requirements.txt 
+
+RUN apt-get install wget
+
+COPY . .
+
+ARG gateway="https://chatbotgw-test.hasti.co"
+
+RUN wget -O ./data/data.yml "${gateway}/nlu" && \
+    wget -O ./domain.yml "${gateway}/domain" && \
+    wget -O ./endpoints.yml "${gateway}/endpoints" && \
+    mv /src/labse_optimized_quantized.onnx  ./components/additional/onnx-models/labse_optimized_quantized.onnx && \
+    rasa train
+
+
+FROM docker.hasti.co/alpha/rasa-assest:test As production
+EXPOSE 5005
+WORKDIR /app
+COPY --from=build /app /app
+COPY --from=build /opt/venv /opt/venv
+
+RUN mkdir -p ./logs
+
+RUN useradd -u 10001 user1 && groupadd group1  && \
+        chown -R user1:group1 /app/ && chown -R user1:group1 ./logs 
+USER user1:group1
+
+
+ENTRYPOINT ["rasa","run" ,"--enable-api", "--log-file", "./logs/rasa.log", "--port", "5005"]
+

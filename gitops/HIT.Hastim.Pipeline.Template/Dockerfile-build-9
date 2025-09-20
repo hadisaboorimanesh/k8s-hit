@@ -1,0 +1,7 @@
+FROM  docker.hasti.co/dotnet/sdk:9.0 AS build
+ARG CSPROJECT
+WORKDIR /src
+COPY . .
+ADD ./nuget.config  ~/.nuget/NuGet/nuget.config
+RUN dotnet restore --disable-parallel --configfile=~/.nuget/NuGet/nuget.config "${CSPROJECT}"
+RUN dotnet publish "${CSPROJECT}" -c Release -o /app/publish --no-restore

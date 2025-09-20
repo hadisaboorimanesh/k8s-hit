@@ -1,0 +1,348 @@
+parameters:
+  - name: agentName
+    type: string
+    default: 'ubuntu-latest'
+  - name: project
+    type: string
+  - name: repo
+    type: string
+  - name: projects
+    type: object
+  - name: dockerRegistry
+    type: string
+  - name: deploy
+    type: boolean
+  - name: consul
+    type: boolean
+    default: false
+
+stages:
+  - stage: Build
+    displayName: Build image
+    variables:
+      - group: ${{ variables['Build.SourceBranchName'] }}
+    jobs:
+      - ${{ each proj in parameters.projects }}:
+        - job: 'Build_${{lower(proj.service_name)}}'
+          displayName: 'Building Project ${{proj.service_name}}'
+          pool:
+            name: Backend
+          steps:
+            - checkout: self
+              persistCredentials: true
+            - checkout: git://Hastim/HIT.Hastim.Pipeline.Template
+              persistCredentials: true
+            - checkout: git://Hastim/gitops
+              persistCredentials: true
+            
+            - task: CopyFiles@2
+              displayName: Preparing docker files...
+              inputs:
+                SourceFolder: '$(Build.SourcesDirectory)/HIT.Hastim.Pipeline.Template'
+                Contents: |
+                  Dockerfile-build-8
+                  Dockerfile-build-9
+                  Dockerfile-run-consul-8
+                  Dockerfile-run-consul-9
+                  Dockerfile-multistage-8
+                  Dockerfile-multistage-9
+                  nuget.config
+                TargetFolder: '$(Build.SourcesDirectory)/${{parameters.repo}}'
+                OverWrite: true     
+         
+            - task: Bash@3
+              displayName: 'Cleaning appsetting to load from Consul'
+              inputs:
+                targetType: 'inline'
+                script: |
+                  find $(Build.SourcesDirectory)/ -iname appsettings*.json
+                  find $(Build.SourcesDirectory)/ -iname appsettings*.json -exec sh -c 'echo \{\} > {}' \;
+                  find $(Build.SourcesDirectory)/ -iname appsettings*.json  -exec sh -c 'cat {}' \;
+                  # find $(Build.SourcesDirectory)/ -iname ocelot*.json
+                  # find $(Build.SourcesDirectory)/ -iname ocelot*.json -exec sh -c 'echo \{\} > {}' \;
+                  # find $(Build.SourcesDirectory)/ -iname ocelot*.json  -exec sh -c 'cat {}' \;
+            
+            - task: Bash@3
+              displayName: 'Building Docker image : ${{proj.service_name}}'
+              inputs:
+                targetType: 'inline'
+                script: |
+                  set -e
+                  cd $(Build.SourcesDirectory)/${{parameters.repo}}
+                  docker login -u $(dockerRegistryUser) -p $(dockerRegistryPassword) $(dockerRegistry)
+
+                  SERVICE_NAME="${{lower(proj.service_name)}}"
+                  PROJECT_NAME="${{lower(parameters.project)}}"
+                  SOURCE_BRANCH="$(Build.SourceBranchName)"
+
+                  # Always build for sale_webapi
+                  if [[ "$SERVICE_NAME" == "sale_webapi" || "$SERVICE_NAME" == "notification_externalapi" || ( "$SERVICE_NAME" != *_websocket && "$SERVICE_NAME" != *_externalapi ) ]]; then
+                      echo "DOTNET 9"
+                      docker build -f Dockerfile-multistage-9 \
+                        --build-arg CSPROJECT=${{proj.csproj_file}} \
+                        --build-arg PROJECT=${{proj.name}} \
+                        --build-arg CONSULKEYS=${{proj.consulkeys}} \
+                        --build-arg CONSULSERVER=$(consul-server) \
+                        --build-arg CONSULTOKEN=$(consul-token) \
+                        --progress=plain -t $(dockerRegistry)/$PROJECT_NAME/$SERVICE_NAME:$(Build.BuildNumber) .
+
+                    # Push main image
+                    docker push $(dockerRegistry)/$PROJECT_NAME/$SERVICE_NAME:$(Build.BuildNumber)
+
+                    # Extra tagging and pushing for sale_webapi
+                    if [[ "$SERVICE_NAME" == "sale_webapi" ]]; then
+                      for alias in sale_websocket sale_externalapi; do
+                        docker tag $(dockerRegistry)/$PROJECT_NAME/sale_webapi:$(Build.BuildNumber) $(dockerRegistry)/$PROJECT_NAME/$alias:$(Build.BuildNumber)
+                        docker push $(dockerRegistry)/$PROJECT_NAME/$alias:$(Build.BuildNumber)
+                      done
+                    fi
+
+                  else
+                    echo "Skipping build for $SERVICE_NAME"
+                  fi
+         
+
+  - stage: GitOps
+    displayName: GitOps
+    variables:
+      - group: ${{ variables['Build.SourceBranchName'] }}
+    jobs:
+      - ${{ each proj in parameters.projects }}:
+        - job: 'Gitops_${{lower(proj.service_name)}}'
+          displayName: 'GitOps Bump Version ${{proj.service_name}}'
+          pool:
+            name: Backend
+          steps:
+            - checkout: self
+              persistCredentials: true
+            - checkout: git://Hastim/gitops
+              persistCredentials: true
+            - task: Bash@3
+              displayName: 'GitOps Bump Version'        
+              env:
+                SERVICE_NAME: ${{replace(lower(proj.service_name), '_', '-')}}
+                SERVICE_NAME_LOWER: ${{lower(proj.service_name)}}
+                IMAGE_NAME: ${{parameters.dockerRegistry}}/${{lower(parameters.project)}}/${{lower(proj.service_name)}}:$(Build.BuildNumber)
+                IMAGE_TAG: $(Build.BuildNumber)
+                BRANCHE_NAME: $(Build.SourceBranchName)
+                CONSUL_KEYS: ${{proj.consulkeys}}
+                CONSUL_SERVER: $(consul-server)
+                CONSUL_TOKEN: $(consul-token)
+                REPO_NAME: ${{parameters.repo}}
+                EXE: ${{proj.name}}.dll
+              inputs:
+                targetType: 'inline'
+                script: |
+                  max_attempts=3
+                  attempt=1
+                  IFS=',' read -ra keys <<< "$CONSUL_KEYS"
+                  modifiedKeys=()
+                  for key in "${keys[@]}"; do
+                    modifiedKey="$BRANCHE_NAME/$key"
+                    modifiedKeys+=("$modifiedKey")
+                  done
+                  CONSUL_KEYS=$(IFS=','; echo "${modifiedKeys[*]}")
+                  while [ $attempt -le $max_attempts ]; do
+                      echo "Attempt $attempt of $max_attempts..."
+                      cd $(Build.SourcesDirectory)/gitops
+                      git config --global user.name "moradi.saeed"
+                      git config --global user.email "moradi.saeed@hasti.co"
+                      git config branch.$(Build.SourceBranchName).rebase false
+                      git pull
+                      git checkout -f $(Build.SourceBranchName)
+                      git pull origin $(Build.SourceBranchName)
+                      if [ ! -d $(Build.SourcesDirectory)/gitops/${{parameters.repo}}/${{lower(proj.service_name)}}/manifests ]; then
+                        mkdir -p $(Build.SourcesDirectory)/gitops/${{parameters.repo}}/${{lower(proj.service_name)}}/manifests
+                        cp -rf $(Build.SourcesDirectory)/gitops/templates $(Build.SourcesDirectory)/gitops/${{parameters.repo}}/${{lower(proj.service_name)}}/
+                      fi
+                      envsubst < $(Build.SourcesDirectory)/gitops/${{parameters.repo}}/${{lower(proj.service_name)}}/templates/deployment.template > $(Build.SourcesDirectory)/gitops/${{parameters.repo}}/${{lower(proj.service_name)}}/manifests/deployment.yaml
+                      envsubst < $(Build.SourcesDirectory)/gitops/${{parameters.repo}}/${{lower(proj.service_name)}}/templates/service.template > $(Build.SourcesDirectory)/gitops/${{parameters.repo}}/${{lower(proj.service_name)}}/manifests/service.yaml
+                      envsubst < $(Build.SourcesDirectory)/gitops/${{parameters.repo}}/${{lower(proj.service_name)}}/templates/configmap.template > $(Build.SourcesDirectory)/gitops/${{parameters.repo}}/${{lower(proj.service_name)}}/manifests/configmap.yaml
+                      envsubst < $(Build.SourcesDirectory)/gitops/${{parameters.repo}}/${{lower(proj.service_name)}}/templates/hpa.template > $(Build.SourcesDirectory)/gitops/${{parameters.repo}}/${{lower(proj.service_name)}}/manifests/hpa.yaml
+                      mkdir -p $(Build.SourcesDirectory)/gitops/ArgoCD/application/backend
+                      envsubst < $(Build.SourcesDirectory)/gitops/ArgoCD/template/backend.template > $(Build.SourcesDirectory)/gitops/ArgoCD/application/backend/${{lower(proj.service_name)}}.yml
+                      git pull origin $(Build.SourceBranchName)
+                      git add $(Build.SourcesDirectory)/gitops/${{parameters.repo}}/${{lower(proj.service_name)}}/manifests/
+                      git add $(Build.SourcesDirectory)/gitops/${{parameters.repo}}/${{lower(proj.service_name)}}/templates/
+                      git add $(Build.SourcesDirectory)/gitops/ArgoCD/application
+                      git commit -m "bump version $(Build.BuildNumber) (${{parameters.repo}}) ${{lower(proj.service_name)}}" -n
+                      git push  && break
+                    echo "Attempt $attempt failed. Retrying in 10 seconds..."
+                    sleep 2
+                    attempt=$((attempt + 1))
+                    done
+                    if [ $attempt -gt $max_attempts ]; then
+                        echo "Script failed after $max_attempts attempts."
+                        exit 1
+                    fi
+      
+  - stage: success_report
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - job: SuccessReportJob
+        pool:
+          name: Backend
+        steps:
+          - script: |
+              curl -s -X POST http://api-tg.nullip.ir/bot7174802265:AAEniql9UCp-QOGRJqSc48-HqsR3GGE34RY/sendMessage \
+              -d chat_id=-1002666321653 \
+              -d message_thread_id=2 \
+              -d text="<b>✅ Pipeline <code>${{ parameters.repo }}</code> on branch <code>${{ variables['Build.SourceBranchName'] }}</code> was successful!</b>" \
+              -d parse_mode=HTML
+            displayName: 'success_report'
+
+  - stage: failed_report
+    dependsOn: Build
+    condition: failed()
+    jobs:
+      - job: FailedReportJob
+        pool:
+          name: Backend
+        steps:
+          - script: |
+              curl -s -X POST http://api-tg.nullip.ir/bot7174802265:AAEniql9UCp-QOGRJqSc48-HqsR3GGE34RY/sendMessage \
+              -d chat_id=-1002666321653 \
+              -d message_thread_id=2 \
+              -d text="<b>❌ Pipeline <code>${{ parameters.repo }}</code> on branch <code>${{ variables['Build.SourceBranchName'] }}</code> has failed!</b> 🔴" \
+              -d parse_mode=HTML
+            displayName: 'failed_report'
+
+  - stage: Clean_UP
+    displayName: CleanUP_Build
+    dependsOn: Build
+    jobs:
+      - job: cleanUpWorkspace
+        pool:
+          name: Backend
+        displayName: 'Clean up workspace Build'
+        steps:
+          - task: PostBuildCleanup@3
+            
+  - stage: Deploy
+    variables:
+      - group: ${{ variables['Build.SourceBranchName'] }}
+    displayName: Deploy
+    dependsOn: GitOps
+    condition: and(succeeded(), or(eq(${{parameters.deploy}}, true), eq(variables['Build.SourceBranchName'], 'develop'), eq(variables['Build.SourceBranchName'], 'test')) )
+    jobs:
+      - job: Deploy
+        pool: 
+          name: Backend
+        displayName: 'Deploying ${{parameters.project}}/${{parameters.repo}}'
+        steps:
+          - checkout: none
+          - ${{ each proj in parameters.projects }}:
+            - script: |
+                  TOKEN=`curl https://argocd.hasti.co/api/v1/session \
+                  -d $'{"username":"$(argo_user)","password":"$(argo_pass)"}'  | jq -r '.token'` ## &&\
+                  echo  $TOKEN
+                  curl  -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" \
+                  https://argocd.hasti.co/api/v1/applications/${{replace(lower(proj.service_name), '_', '-')}}-$(Build.SourceBranchName)/sync
+              displayName: 'Sync ArgoCD with API'
+
+  - stage: Test
+    variables:
+      - group: ${{ variables['Build.SourceBranchName'] }}
+    displayName: Test
+    dependsOn: Deploy
+    condition: and(succeeded(), ne(variables['Build.SourceBranchName'], 'develop') )
+    jobs:
+      - ${{ each proj in parameters.projects }}:
+        - job: 'Test_${{lower(proj.service_name)}}'
+          pool:
+            name: Backend
+          steps:
+            - checkout: self
+              persistCredentials: true       
+            - checkout: git://QA/QA
+              persistCredentials: true
+            - script: |
+                  cd $(Build.SourcesDirectory)/QA
+                  git config --global user.name "moradi.saeed"
+                  git config --global user.email "moradi.saeed@hasti.co"
+                  git pull
+                  service_name=${{replace(lower(proj.service_name), '_', '-')}}
+                  get_health_status() {
+                   
+                    TOKEN=`curl https://argocd.hasti.co/api/v1/session  -d $'{"username":"$(argo_user)","password":"$(argo_pass)"}'  | jq -r '.token'`
+                    HEALTH_STATUS=`curl  -X GET -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN"  https://argocd.hasti.co/api/v1/applications/${{replace(lower(proj.service_name), '_', '-')}}-$(Build.SourceBranchName) | jq -r '.status.health.status'`
+                    echo $HEALTH_STATUS
+                  }
+
+                  send_notification() {
+                    
+                    local pathfile=$1
+
+                    curl -i -X POST -H 'Content-Type: application/json' \
+                     -d '{"channel_id":"o1y9gab8hfnw9joahd85fd6daw", "message":"Api Result for service '${{replace(lower(proj.service_name), '_', '-')}}'  is '${pathfile}'  "}'  \
+                     -H 'Authorization: Bearer zocdyfq7xtfzzn5f78snbgxhir' https://chat.tapsi.shop/api/v4/posts                      
+                  }
+
+                  run_docker() {
+                    local service_name=$1
+                    local test_name=$2
+                    cd all-scenario
+                    docker build -t docker.hasti.co/postman/newman:latest .
+                    docker run --name ${{ variables['Build.SourceBranchName'] }}-$service_name  docker.hasti.co/postman/newman:latest  run /report/${{ variables['Build.SourceBranchName'] }}-scenario-postman-collection.json --globals  /report/${{ variables['Build.SourceBranchName'] }}-variables.json -r cli,htmlextra --reporter-htmlextra-export /report/$test_name-${{ variables['Build.SourceBranchName'] }}.html 
+                    docker cp ${{ variables['Build.SourceBranchName'] }}-$service_name:/report/$test_name-${{ variables['Build.SourceBranchName'] }}.html .
+                    docker  rm -f ${{ variables['Build.SourceBranchName'] }}-$service_name
+                  }
+
+                  run_QaPipeline() {
+                    local test_name=$1
+                    git checkout -f $test_name
+                    git pull
+
+                    counter=0
+                    max_iterations=18
+                    sleep 10
+                    while [ $counter -lt $max_iterations ]; do
+                       ((counter++))
+                        if [ $counter -eq $max_iterations ]; then 
+                            echo "Application is not healthy."    
+                            echo "Please  check application logs "
+                            exit 1 
+
+                        fi
+                      HEALTH_STATUS=$(get_health_status)
+                      echo $HEALTH_STATUS
+                        if [ "$HEALTH_STATUS" == "Healthy" ]; then
+                            run_docker $service_name $test_name
+                            s3_bucket=test
+                            file=$test_name-${{ variables['Build.SourceBranchName'] }}.html
+                            resource="/${s3_bucket}/qa-reports/${file}"
+                            content_type="application/octet-stream"
+                            date=`date -R`
+                            _signature="PUT\n\n${content_type}\n${date}\n${resource}"
+                            signature=`echo -en ${_signature} | openssl sha1 -hmac $(s3_secret) -binary | base64`
+                            curl -X PUT -T "${file}" \
+                                      -H "Host: $(s3_host)" \
+                                      -H "Date: ${date}" \
+                                     -H "Content-Type: ${content_type}" \
+                                      -H "Authorization: AWS $(s3_key):${signature}" \
+                                      https://$(s3_host)${resource}
+                            pathfile="https://$(s3_host)${resource}"          
+                            send_notification $pathfile
+                            break
+                        else
+                            echo "Application is not healthy. Retrying in 10 seconds..."
+                            sleep 10
+                        fi
+                    done 
+                  }
+                    
+                  service_name=${{lower(proj.service_name)}}
+                  result=$(echo "$service_name" | cut -d'_' -f2-)
+                  echo $result
+                  if [[ "$result" == "webapi" && "${{ variables['Build.SourceBranchName'] }}" == "test" ]]; then
+                     run_QaPipeline commerce
+                     run_QaPipeline vendor
+                  elif [[ "$result" == "webapi" && "${{ variables['Build.SourceBranchName'] }}" == "stage" ]]; then
+                     run_QaPipeline commerce
+                  elif [[ "$result" == "adminapi" ]]; then    
+                         exit 0
+                  else  
+                      exit 0
+                  fi
+              displayName: 'Result Api Test'

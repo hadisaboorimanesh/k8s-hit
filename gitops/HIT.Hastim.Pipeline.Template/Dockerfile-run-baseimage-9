@@ -1,0 +1,10 @@
+FROM mcr-fr.nullip.ir/dotnet/aspnet:9.0-noble
+RUN apt-get update && \
+    apt-get install -yq tzdata curl fontconfig && \
+    ln -fs /usr/share/zoneinfo/Asia/Tehran /etc/localtime && \
+    dpkg-reconfigure -f noninteractive tzdata && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+COPY calibri.ttf micross.ttf /usr/share/fonts/truetype/dejavu/
+ENV TZ="Asia/Tehran"
+#RUN fc-cache -fv && fc-list

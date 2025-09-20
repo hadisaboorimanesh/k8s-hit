@@ -3,7 +3,7 @@
     before_script:
       - |
         set -xe
-        git  clone https://hit_bot:Vf@git.hasti.co/alpha/gitops.git
+        #git  clone https://hit_bot:Vf@git.hasti.co/alpha/gitops.git
     script: 
       - |
         set -xe
