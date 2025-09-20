@@ -1,0 +1,15 @@
+version: '3.3'
+services:
+  chatbot-hasti-sentiment:
+    image: docker.hasti.co/alpha/hasti-sentiment:test
+    restart: always
+    environment:
+      - PORT=80
+      - MULTI_MODEL_PATH=/app/multi
+      - BINARY_MODEL_PATH=/app/binary
+    ports:
+      - "7004:80"
+networks:
+  default:
+    external:
+      name: develop

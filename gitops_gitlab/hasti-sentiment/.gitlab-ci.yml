@@ -1,0 +1,4 @@
+include:
+    - project: 'alpha/templates'
+      ref: 'main'
+      file: 'install.yml'

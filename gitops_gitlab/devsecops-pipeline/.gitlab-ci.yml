@@ -1,0 +1,131 @@
+stages:
+  - build
+  - test
+  - scan
+  - sast
+  - dependency_scanning
+  - deploy
+ # - dast
+  - rollback
+
+variables:
+  DOCKER_IMAGE: docker.hasti.co/hadi
+
+.build:
+  stage: build
+  image:  docker-proxy.hasti.co/library/docker:latest
+  services:
+    - docker-proxy.hasti.co/library/docker:dind
+  script:
+    - docker build -t $CI_DOCKER_REGISTRY/hadi app/
+    - docker login -u "$CI_DOCKER_REGISTRY_USER" -p "$CI_DOCKER_REGISTRY_PASSWORD" $CI_DOCKER_REGISTRY
+    - docker push $CI_DOCKER_REGISTRY/hadi
+  only:
+    - main
+  tags:
+    - test
+  
+
+test:
+  stage: test
+  image: docker-proxy.hasti.co/library/python:3.9
+  script: | 
+  
+      export http_proxy=http://172.31.58.242:1081
+      export https_proxy=http://172.31.58.242:1081
+
+
+      pip config --user set global.index-url https://nexus.frox.ir/repository/pypi/simple && \
+      pip config --user set global.no-cache-dir false && \
+      pip install -U pip && \
+      pip install -r  app/src/requirements.txt
+    
+      python -m unittest discover app/src/tests
+  tags:
+    - test  
+
+scan:
+  stage: scan
+  image: docker-proxy.hasti.co/library/registry.access.redhat.com/ubi8/openscap
+  script:
+    - ./openscap/dockerfile_scan.sh
+  tags:
+    - test    
+
+sast:
+  stage: sast
+  image:
+    name: docker-proxy.hasti.co/library/sonarsource/sonar-scanner-cli:latest
+    entrypoint: [""]
+  script:
+    - sonar-scanner -Dsonar.projectKey=your_project_key -Dsonar.sources=app/src -Dsonar.host.url=https://your_sonarqube_url -Dsonar.login=your_sonarqube_token
+  only:
+    - main
+  tags:
+    - test    
+
+dependency_scanning:
+  stage: dependency_scanning
+  image: docker-proxy.hasti.co/library/python:3.9
+  script:
+    - pip install safety
+    - pip install -r app/src/requirements.txt
+    - safety check -r app/src/requirements.txt
+  only:
+    - main
+  tags:
+    - test    
+
+deploy:
+  stage: deploy
+  image: docker-proxy.hasti.co/library/hashicorp/terraform:1.1.2
+  before_script: | 
+       apk add --no-cache curl jq
+       VAULT_TOKEN=$(curl -s --request POST --data '{"password": "'${VAULT_PASS}'"}' http://vault_address:8200/v1/auth/userpass/login/<username> | jq -r '.auth.client_token')
+        AWS_ACCESS_KEY_ID=$(curl -s --header "X-Vault-Token: $VAULT_TOKEN" http://vault_address:8200/v1/secret/data/aws_access_key | jq -r '.data.data.aws_access_key_id')
+       AWS_SECRET_ACCESS_KEY=$(curl -s --header "X-Vault-Token: $VAULT_TOKEN" http://vault_address:8200/v1/secret/data/aws_access_key | jq -r '.data.data.aws_secret_access_key')
+
+  script:
+    - cd terraform
+    - terraform init
+    - terraform validate
+    - terraform state pull > backup.tfstate
+    - terraform plan -out=tfplan -input=false
+    - terraform apply -auto-approve -input=false tfplan
+  only:
+    - main
+  environment:
+    name: production
+    url: http://your-app-url
+  when: manual
+  tags:
+    - test  
+
+.dast:
+  stage: dast
+  image: docker-proxy.hasti.co/library/owasp/zap2docker-stable
+  script: | 
+       export TARGET_URL=http://your-app-url
+       zap-api-scan.py -t $TARGET_URL/api/v1/ -f openapi -u https://raw.githubusercontent.com/zaproxy/zaproxy/master/zap/src/main/dist/scripts/templates/authentication/Login%20Script.js.template -c "username=<your_username>&password=<your_password>&csrfTokenName=<your_csrf_token_name>&loginUrl=<your_login_url>&loginRequestData=<your_login_request_data>"
+       zap-cli report -o zap_report.html -f html
+  artifacts:
+    paths:
+      - zap_report.html
+  only:
+    - main
+  tags:
+    - test    
+
+rollback:
+  stage: deploy
+  image: docker-proxy.hasti.co/library/hashicorp/terraform:1.1.2
+  script:
+    - cd terraform
+    - terraform init
+    - terraform state push backup.tfstate
+  when: manual
+  environment:
+    name: production
+    action: stop
+  tags:
+    - test

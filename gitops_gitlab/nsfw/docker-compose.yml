@@ -1,0 +1,13 @@
+version: '3.3'
+
+services:
+  chatbot-nsfw:
+    image: docker.hasti.co/alpha/nsfw:test
+    restart: always
+    ports:
+      - "7003:80"
+
+networks:
+  default:
+    external:
+      name: develop
